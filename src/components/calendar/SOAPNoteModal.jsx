@@ -61,6 +61,7 @@ import {
   appendAiProvenance,
   markAiAssistedText,
 } from "@/lib/clinical/aiProvenance";
+import { usePersistentTranscription } from "@/lib/transcription/PersistentTranscriptionContext";
 
 const MAX_TRANSCRIPTION_AUDIO_BYTES = 20 * 1024 * 1024;
 const RECORDER_MIME_CANDIDATES = Object.freeze([
@@ -103,8 +104,9 @@ export default function SOAPNoteModal({
   const transcription = useAiCapability('transcription');
   const transcriptionEnabled = transcription.canTrigger;
   const ai = useAiCapability();
-  const legacySectionAiAllowed = activeProfession.id === 'exercise-physiology';
-  const legacyTranscriptDissectionAllowed = activeProfession.id === 'exercise-physiology';
+  const sharedSectionAiAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
+  const sharedTranscriptDissectionAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
+  const persistentTranscription = usePersistentTranscription();
 
   const [soapNote, setSoapNote] = useState(null);
   const [originalSoapNote, setOriginalSoapNote] = useState(null);
@@ -673,6 +675,36 @@ export default function SOAPNoteModal({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const attachPersistentTranscription = async () => {
+    if (!persistentTranscription.session?.id) return;
+    try {
+      await base44.functions.invoke('manageTranscriptionSession', {
+        action: 'attach',
+        org_id: client.org_id,
+        session_id: persistentTranscription.session.id,
+        client_id: client.id,
+        appointment_id: appointment?.id || null,
+        care_episode_id: careEpisodeId || null,
+        label: noteName || persistentTranscription.session.label,
+      });
+      await persistentTranscription.refresh();
+      toast.success(`Persistent transcription attached to this ${activeProfession.lexicon.client}.`);
+    } catch (error) {
+      toast.error(normalizeSdkError(error, {
+        stage: 'persistent_transcription_attach',
+        fallbackDetails: 'The persistent transcription could not be attached to this consultation.',
+      }).details);
+    }
+  };
+
+  const usePersistentTranscript = () => {
+    const transcriptText = persistentTranscription.session?.transcript || '';
+    if (!transcriptText) return;
+    setSessionTranscript((current) => current ? `${current}\n\n---\n\n${transcriptText}` : transcriptText);
+    setShowTranscriptPanel(true);
+    toast.success('Persistent transcript added to this note workspace.');
   };
 
   const transcribeAudio = async (audioUrl) => {
@@ -1371,6 +1403,24 @@ export default function SOAPNoteModal({
 
           {/* Recording Section */}
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border-2 border-purple-200 mb-4">
+            {persistentTranscription.session && (
+              <div className="mb-4 rounded-lg border border-teal-200 bg-teal-50 p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-teal-950">Persistent transcription is {persistentTranscription.phase.replaceAll('_', ' ')}</p>
+                    <p className="mt-1 text-xs text-teal-800">It continues outside this window and keeps recoverable audio checkpoints.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {persistentTranscription.session.client_id !== client.id && !['ready', 'discarded'].includes(persistentTranscription.phase) && (
+                      <Button type="button" size="sm" variant="outline" onClick={attachPersistentTranscription}>Attach here</Button>
+                    )}
+                    {persistentTranscription.session.transcript && (
+                      <Button type="button" size="sm" className="bg-teal-800 hover:bg-teal-900" onClick={usePersistentTranscript}><FileText className="mr-1 h-3.5 w-3.5" />Use transcript</Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-3 h-3 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`} />
@@ -1501,7 +1551,7 @@ export default function SOAPNoteModal({
                   placeholder="Transcript will appear here once transcription completes."
                   className="text-sm"
                 />
-                {!isLocked && legacyTranscriptDissectionAllowed && (
+                {!isLocked && sharedTranscriptDissectionAllowed && (
                   <div className="flex justify-end mt-2">
                     <Button
                       size="sm"
@@ -1590,7 +1640,7 @@ export default function SOAPNoteModal({
                   <div className="flex items-center justify-between mb-2">
                     <Label htmlFor="assessment" className="text-lg font-semibold">Assessment</Label>
                     <div className="flex gap-2">
-                      {!isLocked && legacySectionAiAllowed && (
+                      {!isLocked && sharedSectionAiAllowed && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1712,7 +1762,7 @@ export default function SOAPNoteModal({
                             )}
                             Attach Document
                           </Button>
-                          {legacySectionAiAllowed && (
+                          {sharedSectionAiAllowed && (
                             <Button
                               variant="outline"
                               size="sm"

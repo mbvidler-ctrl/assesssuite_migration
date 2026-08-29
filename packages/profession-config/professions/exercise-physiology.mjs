@@ -56,6 +56,7 @@ const exercisePhysiology = {
       'Nutrition',
       'Reports',
       'FundingForms',
+      'Customise',
       'MyProfile',
     ],
     allowedPages: [
@@ -68,6 +69,7 @@ const exercisePhysiology = {
       'ClientConditions',
       'ClientProfile',
       'Clients',
+      'Customise',
       'Dashboard',
       'Finances',
       'FundingForms',

@@ -57,6 +57,9 @@ const physiotherapy = {
       'AssessmentLibrary',
       'TreatmentProtocols',
       'Reports',
+      'FundingForms',
+      'Finances',
+      'Customise',
       'MyProfile',
     ],
     allowedPages: [
@@ -67,8 +70,10 @@ const physiotherapy = {
       'Calendar',
       'ClientProfile',
       'Clients',
+      'Customise',
       'Dashboard',
       'Finances',
+      'FundingForms',
       'Home',
       'MyProfile',
       'NewAssessment',
@@ -95,7 +100,7 @@ const physiotherapy = {
   },
   features: {
     careEpisodes: true,
-    legacyGeneralClinicalLlm: false,
+    legacyGeneralClinicalLlm: true,
     aiTaskIds: [
       'physio.initial_assessment_summary.v1',
       'physio.soap_note.v1',

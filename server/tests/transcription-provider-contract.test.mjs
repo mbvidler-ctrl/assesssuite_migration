@@ -34,6 +34,7 @@ function makeApiUsage({ reserve, settle, transcriptionCost = 321, chatCost = 654
     reserve: reserve || (async () => ({ id: 'usage-reservation' })),
     settle: settle || (async () => {}),
     calculateTranscriptionCostMicrousd: () => transcriptionCost,
+    calculateTranscriptionTokenCostMicrousd: () => transcriptionCost,
     calculateChatCostMicrousd: () => chatCost,
   };
 }
@@ -69,11 +70,12 @@ test('transcription provider, admission and browser-source contracts', async (t)
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  const invoke = (body, apiUsage, testFallback = null) => transcriptionModule.default({
+  const invoke = (body, apiUsage, testFallback = null, extras = {}) => transcriptionModule.default({
     body: { org_id: 'org-1', ...body },
     user: { id: 'user-1', email: 'clinician@example.test' },
     ...(apiUsage ? { apiUsage } : {}),
     ...(testFallback ? { transcriptionFallback: testFallback } : {}),
+    ...extras,
     respond: (status, responseBody) => ({ status, body: responseBody }),
   });
 
@@ -273,6 +275,107 @@ test('transcription provider, admission and browser-source contracts', async (t)
         assert.equal(result.status, 502);
         assert.equal(result.body.code, 'transcription_provider_failed');
         assert.deepEqual(settlement, { reservationId: 'usage-reservation', status: 'failed' });
+      },
+    );
+  });
+
+  await t.test('persistent segments use diarization, retain speaker timing and settle token cost', async () => {
+    let providerRequest = null;
+    let reservation = null;
+    let settlement = null;
+    const session = {
+      id: 'persistent-session-1',
+      orgId: 'org-1',
+      userId: 'user-1',
+      status: 'recording',
+      transcriptText: '',
+      durationSeconds: 0,
+      segments: [{
+        sequence: 0,
+        audioUrl: '/uploads/recording.wav',
+        durationSeconds: 30,
+        status: 'uploaded',
+        transcriptText: '',
+        speakers: [],
+      }],
+    };
+    const transcriptionSessions = {
+      get: (id) => (id === session.id ? session : null),
+      update: (_id, patch) => Object.assign(session, patch),
+      updateSegmentResult: (_id, sequence, patch) => {
+        Object.assign(session.segments.find((entry) => entry.sequence === sequence), patch);
+      },
+      rebuildTranscript: () => {
+        session.transcriptText = session.segments
+          .filter((entry) => entry.status === 'ready')
+          .map((entry) => entry.transcriptText)
+          .join('\n\n');
+        return session;
+      },
+    };
+    globalThis.fetch = async (url, options) => {
+      providerRequest = { url: String(url), options };
+      return new Response(JSON.stringify({
+        text: 'Speaker A: Contact clinician@example.test. Speaker B: I will.',
+        duration: 31.25,
+        segments: [
+          { id: 1, speaker: 'Clinician', start: 0, end: 4.5, text: 'Contact clinician@example.test.' },
+          { id: 2, speaker: 'Patient', start: 4.5, end: 6.2, text: 'I will.' },
+        ],
+        usage: { input_tokens: 1_200, output_tokens: 75 },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'x-request-id': 'req_diarized_contract' },
+      });
+    };
+    const apiUsage = makeApiUsage({
+      reserve: async (request) => { reservation = request; return { id: 'usage-diarized' }; },
+      settle: async (value) => { settlement = value; },
+      transcriptionCost: 919,
+    });
+
+    await withEnvironment(
+      { TRANSCRIPTION_ENABLED: '1', SELFTEST: '0', LLM_REQUIRED: '1', OPENAI_API_KEY: 'synthetic-key' },
+      async () => {
+        resolvedFile = goodWav;
+        const result = await invoke({
+          action: 'transcribe_segment',
+          persistent_session_id: session.id,
+          sequence: 0,
+          audio_url: '/uploads/recording.wav',
+        }, apiUsage, null, { transcriptionSessions });
+
+        assert.equal(result.status, 200, JSON.stringify(result.body));
+        assert.equal(providerRequest.url, 'https://api.openai.com/v1/audio/transcriptions');
+        assert.equal(providerRequest.options.body.get('model'), 'gpt-4o-transcribe-diarize');
+        assert.equal(providerRequest.options.body.get('response_format'), 'diarized_json');
+        assert.equal(providerRequest.options.body.get('chunking_strategy'), 'auto');
+        assert.equal(providerRequest.options.body.get('language'), 'en');
+        assert.equal(result.body.simulated, false);
+        assert.match(result.body.transcript, /\[REDACTED_EMAIL\]/);
+        assert.deepEqual(result.body.speakers.map(({ speaker, start, end }) => ({ speaker, start, end })), [
+          { speaker: 'Clinician', start: 0, end: 4.5 },
+          { speaker: 'Patient', start: 4.5, end: 6.2 },
+        ]);
+        assert.match(result.body.speakers[0].text, /\[REDACTED_EMAIL\]/);
+        assert.deepEqual(reservation, {
+          feature: 'transcription',
+          model: 'gpt-4o-transcribe-diarize',
+          estimatedCostMicrousd: 600,
+        });
+        assert.deepEqual(settlement, {
+          reservationId: 'usage-diarized',
+          status: 'succeeded',
+          inputTokens: 1_200,
+          cachedInputTokens: 0,
+          outputTokens: 75,
+          audioSeconds: 31.25,
+          providerRequestId: 'req_diarized_contract',
+          actualCostMicrousd: 919,
+        });
+        assert.equal(session.segments[0].status, 'ready');
+        assert.match(session.transcriptText, /\[REDACTED_EMAIL\]/);
+        assert.equal(result.body.provider_receipt.usage.actual_cost_microusd, 919);
       },
     );
   });

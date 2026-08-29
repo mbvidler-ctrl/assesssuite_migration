@@ -72,5 +72,6 @@ export function runProductionCatalogueSeed({ db, entityNames, environment = proc
   return Object.freeze({
     assessment_count: assessmentCatalogue.length,
     exercise_count: PRODUCTION_EXERCISE_CATALOGUE.length,
+    treatment_protocol_count: treatmentProtocolCatalogue().length,
   });
 }

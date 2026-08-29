@@ -8,6 +8,147 @@ export const REPORT_PROMPT_LIMITS = Object.freeze({
   soapContextCharacters: 4_000,
 });
 
+export const REPORT_FORM_PROFILES = Object.freeze({
+  workcover_pmp: Object.freeze({
+    label: "Queensland Provider Management Plan",
+    audience: "claims manager and treating team",
+    purpose: "record injury-related function, measurable goals, barriers, requested services and return-to-work planning",
+    targetWords: 900,
+    rules: Object.freeze([
+      "Use short field-ready answers rather than a general narrative.",
+      "Quantify current capacity, work demand and planned dosage only when recorded.",
+      "Do not repeat the mechanism, diagnosis or claim details across fields.",
+    ]),
+  }),
+  sira_ahtr: Object.freeze({
+    label: "NSW Allied Health Treatment Request",
+    audience: "insurer and recovery team",
+    purpose: "support a treatment request with measured function, recovery goals, barriers and planned services",
+    targetWords: 850,
+    rules: Object.freeze([
+      "Answer the named AHTR section directly and keep supporting evidence adjacent to the claim it supports.",
+      "Use recorded work and participation goals; do not infer approval, entitlement or capacity.",
+      "Prefer values, dates and concise lists over repeated clinical history.",
+    ]),
+  }),
+  dva_patient_care_plan: Object.freeze({
+    label: "DVA Patient Care Plan",
+    audience: "veteran, referrer and treating team",
+    purpose: "document cycle goals, baseline measures, management and review plan",
+    targetWords: 850,
+    rules: Object.freeze([
+      "Use measurable goals and preserve accepted-condition wording exactly when supplied.",
+      "Keep the plan practical and cycle-specific; do not add unsupplied services or arrangements.",
+    ]),
+  }),
+  dva_end_cycle_report: Object.freeze({
+    label: "DVA End of Cycle Report",
+    audience: "referrer and treating team",
+    purpose: "summarise treatment delivered, measured change, current function and next-step recommendation",
+    targetWords: 750,
+    rules: Object.freeze([
+      "Lead with measured change and goal status.",
+      "State further-care reasoning once; do not repeat it in every section.",
+    ]),
+  }),
+  medicare_referral_acceptance: Object.freeze({
+    label: "Medicare referral acceptance",
+    audience: "referring practitioner",
+    purpose: "confirm receipt and state the planned initial service succinctly",
+    targetWords: 150,
+    rules: Object.freeze(["Use labelled lines or a very short letter; omit background not needed to confirm acceptance."]),
+  }),
+  medicare_initial: Object.freeze({
+    label: "Medicare initial assessment report",
+    audience: "referring practitioner",
+    purpose: "communicate key findings, goals and the initial management plan",
+    targetWords: 500,
+    rules: Object.freeze(["Put the clinically actionable message first and avoid reproducing the complete assessment record."]),
+  }),
+  medicare_final: Object.freeze({
+    label: "Medicare final report",
+    audience: "referring practitioner",
+    purpose: "communicate services delivered, measured outcomes and discharge or follow-up recommendations",
+    targetWords: 500,
+    rules: Object.freeze(["Use baseline-to-final values once and make the next action explicit."]),
+  }),
+  gp_summary: Object.freeze({
+    label: "GP summary letter",
+    audience: "general practitioner or specialist referrer",
+    purpose: "provide a concise clinical update and a clear requested or recommended next action",
+    targetWords: 300,
+    rules: Object.freeze(["Put the key message in the first two sentences and omit routine detail that does not change management."]),
+  }),
+  ndis_initial: Object.freeze({
+    label: "NDIS initial assessment report",
+    audience: "participant and funding decision-maker",
+    purpose: "describe recorded disability-related function, goals, baseline measures and proposed supports",
+    targetWords: 1_200,
+    rules: Object.freeze([
+      "Link each proposed support to a recorded goal, functional limitation and supporting assessment.",
+      "Do not assert eligibility, approval or value for money without supplied evidence.",
+    ]),
+  }),
+  ndis_progress: Object.freeze({
+    label: "NDIS progress report",
+    audience: "participant and funding decision-maker",
+    purpose: "show measured progress, residual functional needs and the next support plan",
+    targetWords: 1_000,
+    rules: Object.freeze(["Use goal-by-goal evidence and state missing or non-comparable baseline data explicitly."]),
+  }),
+  ndis_fce: Object.freeze({
+    label: "NDIS functional capacity evaluation",
+    audience: "participant and funding decision-maker",
+    purpose: "record observed and measured capacity across relevant participation domains",
+    targetWords: 1_500,
+    rules: Object.freeze(["Separate measured capacity, reported difficulty and clinician interpretation in every domain."]),
+  }),
+  ndis_discharge: Object.freeze({
+    label: "NDIS discharge or transition summary",
+    audience: "participant and support team",
+    purpose: "summarise outcomes, current function, self-management and transition needs",
+    targetWords: 700,
+    rules: Object.freeze(["Prioritise durable supports, unresolved needs and ownership of each next action."]),
+  }),
+});
+
+export function resolveReportFormProfile(reportTypeKey) {
+  if (typeof reportTypeKey !== "string" || reportTypeKey.trim() === "") return null;
+  const exact = REPORT_FORM_PROFILES[reportTypeKey];
+  if (exact) return exact;
+  if (/(?:fce|fca|functional_capacity)/i.test(reportTypeKey)) {
+    return Object.freeze({
+      label: "Functional capacity report",
+      audience: "clinical or funding decision-maker",
+      purpose: "state measured tolerances, task demands and supported functional conclusions",
+      targetWords: 1_500,
+      rules: Object.freeze([
+        "Separate measured performance, reported symptoms and interpretation.",
+        "Do not infer effort reliability, causation or capacity beyond the tests supplied.",
+      ]),
+    });
+  }
+  if (/(?:progress|review)/i.test(reportTypeKey)) {
+    return Object.freeze({
+      label: "Progress report",
+      audience: "referrer, funder or treating team",
+      purpose: "show baseline-to-current change, goal progress, barriers and the next plan",
+      targetWords: 900,
+      rules: Object.freeze(["Use each measured value once and distinguish change from attribution."]),
+    });
+  }
+  if (/(?:discharge|completion|final)/i.test(reportTypeKey)) {
+    return Object.freeze({
+      label: "Discharge or completion report",
+      audience: "referrer, funder or treating team",
+      purpose: "summarise services, outcomes, current function and follow-up",
+      targetWords: 700,
+      rules: Object.freeze(["Lead with goal and outcome status; keep the maintenance plan action-oriented."]),
+    });
+  }
+  return null;
+}
+
 export function hasRecordedReportValue(value) {
   return value !== null
     && value !== undefined
@@ -218,7 +359,74 @@ export function buildReportBatchSchema(sections) {
   };
 }
 
-export function validateReportBatchResponse(response, sections) {
+function guidanceWordLimit(guidance, meta) {
+  if (Number.isFinite(guidance?.maxWords) && guidance.maxWords > 0) {
+    return Math.floor(guidance.maxWords);
+  }
+  const text = `${guidance?.prompt || ""} ${guidance?.hint || ""}`;
+  const patterns = [
+    /write\s+max(?:imum)?\s+(\d+)\s+words(?:\s+total)?(?:[.,;]|$)/i,
+    /max(?:imum)?\s+(\d+)\s+words\s+total(?:[.,;]|$)/i,
+    /max(?:imum)?\s+(\d+)\s+words(?:[.,;]|$)/i,
+    /no\s+more\s+than\s+(\d+)\s+words\s+for\s+this\s+section/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return Number(match[1]);
+  }
+  if (meta?.key === "short_referral_letter") return 100;
+  if (meta?.key === "functional_capacity_evaluation") return 250;
+  return 200;
+}
+
+function stripReportFiller(text, section) {
+  const escapedSection = String(section || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text
+    .replace(new RegExp(`^\\s*(?:#{1,6}\\s*|\\*{1,2})?${escapedSection}(?:\\*{1,2})?\\s*:?\\s*(?:\\r?\\n)+`, "i"), "")
+    .replace(/^\s*(?:this report (?:aims|provides|outlines)|the purpose of this (?:report|section) is)[^.]*\.\s*/i, "")
+    .replace(/(?:\r?\n)+\s*(?:please do not hesitate to contact[^\n]*|kind regards|yours sincerely|sincerely)\s*$/i, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function truncateReportWords(text, maxWords) {
+  const words = [...text.matchAll(/\S+/g)];
+  if (words.length <= maxWords) return text;
+  const populatedLines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const tableRows = populatedLines.filter((line) => line.includes("|")).length;
+  const labelledRows = populatedLines.filter((line) => /^[A-Za-z][^:\n]{0,80}:\s*\S/.test(line)).length;
+  // Tables and form-labelled rows are data-bearing structure, not verbosity.
+  // Cutting from their tail can silently remove an assessment, NDIS domain or
+  // required form field while leaving output that appears complete.
+  if (tableRows >= 2 || (labelledRows >= 3 && labelledRows / populatedLines.length >= 0.6)) {
+    return text;
+  }
+  const hardEnd = words[maxWords - 1].index + words[maxWords - 1][0].length;
+  const prefix = text.slice(0, hardEnd);
+  const minimumUsefulEnd = words[Math.max(0, Math.floor(maxWords * 0.72) - 1)]?.index || 0;
+  const boundaryCandidates = [prefix.lastIndexOf("\n"), prefix.lastIndexOf(". "), prefix.lastIndexOf("; ")]
+    .filter((index) => index >= minimumUsefulEnd);
+  const cleanEnd = boundaryCandidates.length > 0 ? Math.max(...boundaryCandidates) + 1 : hardEnd;
+  return prefix.slice(0, cleanEnd).trimEnd();
+}
+
+export function normaliseReportSectionOutput(value, {
+  section = "",
+  guidance = null,
+  meta = null,
+} = {}) {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`Report drafting omitted content for: ${section || "section"}`);
+  }
+  const cleaned = stripReportFiller(value, section);
+  if (!cleaned) throw new Error(`Report drafting omitted content for: ${section || "section"}`);
+  return truncateReportWords(cleaned, guidanceWordLimit(guidance, meta));
+}
+
+export function validateReportBatchResponse(response, sections, {
+  sectionGuidance = {},
+  meta = null,
+} = {}) {
   const eligibleSections = getDraftableReportSections(sections);
   if (!response || typeof response !== "object" || Array.isArray(response)) {
     throw new Error("Report drafting returned an invalid response.");
@@ -232,7 +440,11 @@ export function validateReportBatchResponse(response, sections) {
   }
 
   return Object.fromEntries(
-    eligibleSections.map((section) => [section, response[section].trim()]),
+    eligibleSections.map((section) => [section, normaliseReportSectionOutput(response[section], {
+      section,
+      guidance: sectionGuidance?.[section],
+      meta,
+    })]),
   );
 }
 
@@ -329,6 +541,10 @@ export function buildReportDraftPrompt({
   const metaInstruction = meta && typeof meta.ai_instruction === "string"
     ? `\nREPORT FORMAT GUIDANCE (${meta.label || "report"}${meta.recommended_length_pages ? ` — target ${meta.recommended_length_pages} page${meta.recommended_length_pages > 1 ? "s" : ""}` : ""}):\n${meta.ai_instruction}\n`
     : "";
+  const formProfile = resolveReportFormProfile(reportTypeKey);
+  const formProfileInstruction = formProfile
+    ? `\nFORM-SPECIFIC OUTPUT PROFILE:\n- Template: ${formProfile.label}\n- Audience: ${formProfile.audience}\n- Purpose: ${formProfile.purpose}\n- Whole-report target: no more than ${formProfile.targetWords} words unless a named field imposes a lower limit.\n${formProfile.rules.map((rule) => `- ${rule}`).join("\n")}\n- Missing required fact: write exactly "Not documented in the available record."; never fill the gap by inference.\n`
+    : "";
   const sectionRequirements = formatSectionRequirements(
     eligibleSections,
     sectionGuidance,
@@ -351,7 +567,7 @@ export function buildReportDraftPrompt({
 REPORT TYPE: ${title}
 SECTIONS TO DRAFT:
 ${eligibleSections.map((section) => `- ${section}`).join("\n")}
-${boundedMetaInstruction}
+${boundedMetaInstruction}${formProfileInstruction}
 CLIENT INFORMATION:
 ${clientBlock}
 

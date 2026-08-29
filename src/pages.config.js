@@ -56,6 +56,7 @@ import Calendar from './pages/Calendar';
 import ClientConditions from './pages/ClientConditions';
 import ClientProfile from './pages/ClientProfile';
 import Clients from './pages/Clients';
+import Customise from './pages/Customise';
 import Dashboard from './pages/Dashboard';
 import Finances from './pages/Finances';
 import FundingForms from './pages/FundingForms';
@@ -84,6 +85,7 @@ const SHARED_PAGES = {
     "Calendar": Calendar,
     "ClientProfile": ClientProfile,
     "Clients": Clients,
+    "Customise": Customise,
     "Dashboard": Dashboard,
     "Finances": Finances,
     "MyProfile": MyProfile,
@@ -106,6 +108,7 @@ const SHARED_PAGES = {
 const PHYSIO_PAGES = {
     ...SHARED_PAGES,
     "Home": PhysioHome,
+    "FundingForms": FundingForms,
     "PhysioEpisodes": PhysioEpisodes,
 };
 

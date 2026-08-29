@@ -8,6 +8,15 @@
 // service's own fail-closed contract (server/evidence.mjs: verification
 // never asserts "verified" on a network failure).
 export function getReferenceVerificationBadge(reference) {
+  if (reference?.verification === 'catalogue_source_linked') {
+    return {
+      verified: false,
+      sourceLinked: true,
+      label: 'Source-linked',
+      className: 'bg-teal-700 text-white text-xs',
+      cardClassName: 'bg-teal-50 border-teal-200',
+    };
+  }
   const verified = reference?.verified === true;
   if (verified) {
     return {

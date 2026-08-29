@@ -299,6 +299,7 @@ async function loadFunctionsRouter() {
       mod.init(db, entityNames, {
         apiUsage,
         clinicalReleasePolicy: CLINICAL_RELEASE_POLICY,
+        uploadRegistry,
         ...TEST_PROVIDER_SERVICES,
       });
     }

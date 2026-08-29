@@ -1545,6 +1545,57 @@ export function createUploadRegistry(db, { uploadsDir }) {
   }
 
   /**
+   * A discarded persistent transcription is not a retained clinical record.
+   * Revoke delivery immediately and make its bounded audio eligible for the
+   * next physical-cleanup pass. This narrow path cannot affect other bound
+   * documents or another clinician's upload.
+   */
+  function expireBoundTranscriptionAudio({ sessionId, orgId, actorUserId, now = new Date() }) {
+    const observedAt = new Date(now);
+    if (!Number.isFinite(observedAt.getTime())) throw new TypeError('Transcription expiry clock is invalid');
+    const timestamp = observedAt.toISOString();
+    const rows = db.prepare(`
+      SELECT id FROM upload_registry
+      WHERE org_id = ? AND uploader_user_id = ? AND purpose = 'audio-transcription'
+        AND lifecycle_state = 'bound'
+        AND bound_entity_type = 'TranscriptionSession' AND bound_entity_id = ?
+      ORDER BY created_at, id
+    `).all(orgId, actorUserId, sessionId);
+    let transactionStarted = false;
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      transactionStarted = true;
+      for (const row of rows) {
+        db.prepare(`
+          UPDATE upload_registry
+          SET lifecycle_state = 'expired', expires_at = ?, bound_at = NULL,
+              bound_entity_type = NULL, bound_entity_id = NULL
+          WHERE id = ? AND org_id = ? AND uploader_user_id = ?
+            AND purpose = 'audio-transcription' AND lifecycle_state = 'bound'
+            AND bound_entity_type = 'TranscriptionSession' AND bound_entity_id = ?
+        `).run(timestamp, row.id, orgId, actorUserId, sessionId);
+        audit({
+          uploadId: row.id,
+          orgId,
+          actorUserId,
+          eventType: 'transcription_audio_discarded',
+          outcome: 'expired',
+          metadata: { state_from: 'bound', state_to: 'expired' },
+          now: observedAt,
+        });
+      }
+      db.exec('COMMIT');
+      transactionStarted = false;
+    } catch (error) {
+      if (transactionStarted) {
+        try { db.exec('ROLLBACK'); } catch { /* preserve the primary failure */ }
+      }
+      throw error;
+    }
+    return { expired: rows.length };
+  }
+
+  /**
    * Resolve the safe branch of an upload-disposition decision. The application
    * has no independently verifiable clinical-record transfer destination and
    * cannot make filesystem deletion atomic with SQLite, so transfer/delete
@@ -1728,6 +1779,7 @@ export function createUploadRegistry(db, { uploadsDir }) {
     transition,
     bind,
     retireBoundForEntity,
+    expireBoundTranscriptionAudio,
     audit,
     cancelTemporary,
     quarantineExtractedUnder13,

@@ -23,6 +23,7 @@ import {
   findReportOutcomeSection,
   getDraftableReportSections,
   limitReportText,
+  normaliseReportSectionOutput,
   normaliseReportAssessments,
   validateReportBatchResponse,
 } from "@/lib/reports/reportContentGeneration";
@@ -72,7 +73,8 @@ const SECTION_GUIDANCE = {
   },
   "Functional Capacity Assessment Results (across 7 NDIS domains)": {
     hint: "7 NDIS domains — one paragraph per domain, max 30 words each. Reference assessment results.",
-    prompt: "Address all 7 NDIS support domains. Format as labelled sections: 'Daily Activities:', 'Self-Care:', 'Communication:', 'Social & Community Participation:', 'Learning:', 'Home Living:', 'Health & Wellbeing:'. For each: one sentence stating functional level + one sentence referencing the supporting assessment result. Max 30 words per domain."
+    prompt: "Address all 7 NDIS support domains. Format as labelled sections: 'Daily Activities:', 'Self-Care:', 'Communication:', 'Social & Community Participation:', 'Learning:', 'Home Living:', 'Health & Wellbeing:'. For each: one sentence stating functional level + one sentence referencing the supporting assessment result. Max 30 words per domain.",
+    maxWords: 250,
   },
   "NDIS Functional Impact Statement": {
     hint: "ICF language — body functions, activity limitations, participation restrictions. Link to NDIS supports.",
@@ -164,7 +166,8 @@ const SECTION_GUIDANCE = {
   },
   "Return to Work Plan": {
     hint: "Graduated RTW table: Week | Hours | Duties | Restrictions.",
-    prompt: "Present RTW plan as a plain text table: Week | Hours/Day | Permitted Duties | Restrictions. Follow with: 'Full Duties Target Date:' and 'Progression Criteria:' as labelled lines. Max 100 words total including table."
+    prompt: "Present RTW plan as a plain text table: Week | Hours/Day | Permitted Duties | Restrictions. Follow with: 'Full Duties Target Date:' and 'Progression Criteria:' as labelled lines. Keep the plan concise while retaining every required row and labelled field.",
+    maxWords: 150,
   },
   "Barriers to Recovery": {
     hint: "Physical, psychological, workplace, system barriers. Hyphen list with impact and action.",
@@ -184,7 +187,8 @@ const SECTION_GUIDANCE = {
   },
   "Support Needs Summary": {
     hint: "NDIS domains — support type, frequency, justification. Max 30 words per domain.",
-    prompt: "For each relevant NDIS domain: '[Domain]: [support type required], [frequency] — [one-clause justification referencing assessment evidence]'. Max 30 words per domain. Present as labelled sections."
+    prompt: "For each relevant NDIS domain: '[Domain]: [support type required], [frequency] — [one-clause justification referencing assessment evidence]'. Max 30 words per domain. Present as labelled sections.",
+    maxWords: 250,
   },
   "Reasonable & Necessary Justification": {
     hint: "Link EP services to NDIS criteria — effective, appropriate, value for money. Max 120 words.",
@@ -454,117 +458,33 @@ export default function SectionEditor({ sections, content, onChange, client, cli
     setIsGenerating(true);
     try {
       const { clientContext, priorReportContext, soapContext } = buildFullContext();
-      const assessmentSummary = buildReportAssessmentSummary(clientContext.assessments);
-      const clientDetails = limitReportText(
-        JSON.stringify({ ...clientContext, assessments: undefined }, null, 2),
-        5_000,
-      ) || "{}";
-
-      const sectionGuidance = SECTION_GUIDANCE[activeSection];
-      const outcomeInstruction = activeSection === findReportOutcomeSection(sections)
-        ? '\n- A verified deterministic outcome comparison table is inserted automatically. Interpret it concisely; do not recreate the table or repeat its row values.'
-        : '';
-      const sectionSpecificInstructions = sectionGuidance
-        ? `\n\nSECTION-SPECIFIC REQUIREMENTS for "${activeSection}":\n${sectionGuidance.prompt}${sectionGuidance.maxWords ? `\n- Write no more than ${sectionGuidance.maxWords} words for this section. Be tight.` : ''}${outcomeInstruction}`
-        : outcomeInstruction ? `\n\nSECTION-SPECIFIC REQUIREMENTS for "${activeSection}":${outcomeInstruction}` : '';
-
       const metaKey = REPORT_META_TEMPLATE_MAP[reportTypeKey];
       const meta = metaKey ? META_TEMPLATES[metaKey] : null;
-      const metaInstruction = meta
-        ? `\n\nREPORT FORMAT GUIDANCE (${meta.label} — target ${meta.recommended_length_pages} page${meta.recommended_length_pages > 1 ? 's' : ''}):\n${meta.ai_instruction}`
-        : '';
-
-      const prompt = `You are acting as an expert ${activeProfession.clinicalPromptRole} writing the "${activeSection}" section of a "${reportTitle || 'clinical'}" report for an allied health practice.
-
-REPORT TYPE: ${reportTitle || reportTypeKey || 'Clinical Report'}
-SECTION BEING WRITTEN: ${activeSection}${metaInstruction}
-
-CLIENT INFORMATION:
-${clientDetails}
-
-ASSESSMENT RESULTS (IMPORTANT — reference these specifically by name, result, and clinical meaning):
-${limitReportText(assessmentSummary, 4_500)}
-
-${priorReportContext ? `PRIOR REPORTS FOR THIS CLIENT (use to maintain consistency and show progress):
-${priorReportContext}
-` : ''}
-${soapContext ? `RECENT SOAP / SESSION NOTES (use to reflect actual treatment delivered):
-${soapContext}
-` : ''}${sectionSpecificInstructions}
-
-CLINICAL WRITING RULES — FOLLOW STRICTLY:
-
-0. SOURCE FIDELITY — the supplied record is the only factual source:
-   - Preserve recorded dates, values and units exactly, including a measured value of 0
-   - Never invent diagnoses, symptoms, normative ranges, referrers, practitioners, attendance, funding codes or clinical events
-   - If required information is unavailable, omit it or state "Not documented in the available record." Do not guess
-   - Distinguish client-reported information from measured, observed and clinician-interpreted information
-
-1. WORD LIMITS — enforce without exception:
-   - Referral acceptance / confirmation letters: max 150 words total
-   - GP/specialist summary letters: max 300 words total
-   - Individual progress, initial, or discharge report sections: max 200 words per section
-   - FCE / functional capacity sections: max 250 words per section
-   - Treatment plan / care plan sections: max 200 words per section
-   Stop at the limit. Do not pad to fill space.
-
-2. NO REPETITION — each section must contain NEW information only:
-   - Never restate diagnosis, DOB, or background already stated in a prior section
-   - Never repeat assessment result values stated elsewhere in the report
-   - Reference prior sections with "as noted above" — do not restate detail
-
-3. STRUCTURE — use the most scannable format for the content type:
-   - Assessment results: plain text table (Test | Result | Norm | Interpretation)
-   - Goal progress: one line per goal (Goal -> Baseline -> Current -> Rating)
-   - Recommendations: numbered list with frequency/hours on every line
-   - Barriers: plain hyphens as bullet points, one per line
-   - Prose paragraphs: only for narrative sections (background, prognosis, clinical reasoning)
-
-4. GOAL LINKING — every finding must connect to a goal or functional outcome:
-   - Do not state a result without explaining its functional significance
-   - Use language like "limiting [goal]", "supports return to [activity]", "demonstrates readiness for [task]"
-   - Use rating scales for progress: Achieved / Significant Progress / Moderate Progress / Limited Progress / No Progress
-
-5. FUNDER AUDIENCE — adjust tone and terminology to the report type:
-   - NDIS: ICF language, support domains, line item codes where applicable
-   - WorkCover / RTW (all states): work capacity, job demands, RTW timeline, barriers
-   - Medicare / DVA: chronic disease management, functional change, cycle justification
-   - FCE / Legal: consistency of effort, reliability of results, overall work capacity
-   - GP letter: plain clinical English, key message in first two sentences
-   - UK NHS ERS / Cardiac / Pulmonary / Cancer Rehab: programme outcomes, BACPR/BTS guideline language
-   - UK PMI: insurer-focused, concise functional status and treatment justification
-   - Canada WSIB: FAF-relevant functional tolerances (Form 2647A) where applicable
-   - Canada WorkSafeBC / WCB Alberta: FCE findings, RTW classification, functional tolerances
-   - Canada EHB / VAC: private insurer or Veterans Affairs programme language
-   - NZ ACC: ACC32 extension criteria, programme outcome KPIs
-   - NZ Disability Support / Private Insurance: functional independence, support needs
-   - Singapore Healthier SG / CDMP: MOH programme KPIs, chronic disease management language
-   - Singapore WICA: work injury functional tolerances, RTW plan
-   - Ireland HSE / Cardiac Rehab: HSE programme outcomes, PIAB FCE standards
-   - South Africa Medical Aid: scheme-compliant language, ICD-10 codes
-   - South Africa COIDA: functional capacity, RTW classification, compensation board language
-   - South Africa RAF: road accident functional capacity, impairment rating
-
-6. SIGN-OFF READINESS:
-   - Do not generate practitioner identity, a signature, or a sign-off; AssessSuite inserts the configured sign-off separately
-   - All dates must be explicitly stated — never "recently" or "previously"
-   - All numbers must include units (480m, 85kg, 3x/week, 45 min)
-
-7. EXCLUDE — never include:
-   - Preamble ("This report aims to...", "It is my pleasure to...")
-   - Sign-offs ("Please do not hesitate to contact me...")
-   - Repeated section headers within body text
-   - Speculative language without evidence ("may", "could potentially")
-   - Generic filler ("The client has been working hard toward their goals")
-
-Write ONLY the "${activeSection}" section. Return ONLY plain text — no HTML, no markdown, no bullet symbols except plain hyphens for lists.`;
+      const prompt = buildReportDraftPrompt({
+        professionId: activeProfession.id,
+        reportTitle,
+        reportTypeKey,
+        clientContext,
+        assessmentSummary: buildReportAssessmentSummary(clientContext.assessments),
+        priorReportContext,
+        soapContext,
+        sections: [activeSection],
+        sectionGuidance: SECTION_GUIDANCE,
+        meta,
+        outcomeSection: findReportOutcomeSection(sections),
+      });
 
       const response = await InvokeLLM({ prompt });
       // The AI-drafted flag rides in the same free-form section_content map as
       // the existing `${section}_signature` / `${section}_attachments` sibling
       // keys, so it round-trips through SavedReport.section_content and is
       // ignored by any older build.
-      onChange({ ...content, [activeSection]: response, [`${activeSection}_ai_drafted`]: true });
+      const fitted = normaliseReportSectionOutput(response, {
+        section: activeSection,
+        guidance: SECTION_GUIDANCE[activeSection],
+        meta,
+      });
+      onChange({ ...content, [activeSection]: fitted, [`${activeSection}_ai_drafted`]: true });
       toast.success("Content generated!");
     } catch (error) {
       toast.error(aiErrorMessage(ai.reportError(error)));
@@ -581,7 +501,7 @@ Write ONLY the "${activeSection}" section. Return ONLY plain text — no HTML, n
     if (!content[activeSection]?.trim()) { toast.error("Please add some content first"); return; }
     setIsTidying(true);
     try {
-      const prompt = `You are editing a clinical report section. Apply these rules strictly and return ONLY the corrected plain text:
+      const prompt = `You are an expert ${activeProfession.clinicalPromptRole} editing a ${activeProfession.disciplineName.toLowerCase()} clinical report section. Apply these rules strictly and return ONLY the corrected plain text:
 
 1. Cut any sentence that repeats information already present in the same section
 2. Replace vague language ("significantly improved", "worked hard", "the client has been progressing well") with specific measurable statements — if no data exists to support the claim, delete the sentence
@@ -594,7 +514,14 @@ Write ONLY the "${activeSection}" section. Return ONLY plain text — no HTML, n
 SECTION TO EDIT:
 ${content[activeSection]}`;
       const response = await InvokeLLM({ prompt });
-      onChange({ ...content, [activeSection]: response, [`${activeSection}_ai_drafted`]: true });
+      const metaKey = REPORT_META_TEMPLATE_MAP[reportTypeKey];
+      const meta = metaKey ? META_TEMPLATES[metaKey] : null;
+      const fitted = normaliseReportSectionOutput(response, {
+        section: activeSection,
+        guidance: SECTION_GUIDANCE[activeSection],
+        meta,
+      });
+      onChange({ ...content, [activeSection]: fitted, [`${activeSection}_ai_drafted`]: true });
       toast.success("Content tidied!");
     } catch (error) {
       toast.error(aiErrorMessage(ai.reportError(error)));
@@ -620,6 +547,7 @@ ${content[activeSection]}`;
       const metaKey = REPORT_META_TEMPLATE_MAP[reportTypeKey];
       const meta = metaKey ? META_TEMPLATES[metaKey] : null;
       const prompt = buildReportDraftPrompt({
+        professionId: activeProfession.id,
         reportTitle,
         reportTypeKey,
         clientContext,
@@ -635,7 +563,10 @@ ${content[activeSection]}`;
         prompt,
         response_json_schema: buildReportBatchSchema(eligibleSections),
       });
-      const generatedSections = validateReportBatchResponse(response, eligibleSections);
+      const generatedSections = validateReportBatchResponse(response, eligibleSections, {
+        sectionGuidance: SECTION_GUIDANCE,
+        meta,
+      });
       const newContent = { ...content };
 
       for (const [section, value] of Object.entries(generatedSections)) {

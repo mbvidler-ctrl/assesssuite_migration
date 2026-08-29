@@ -16,7 +16,9 @@ import {
   buildReportDraftPrompt,
   buildSoapReportContext,
   limitReportText,
+  normaliseReportSectionOutput,
   normaliseReportAssessments,
+  resolveReportFormProfile,
   validateReportBatchResponse,
 } from '../../src/lib/reports/reportContentGeneration.js';
 
@@ -146,6 +148,60 @@ test('whole-report prompt coordinates sections, constrains facts and avoids outc
   assert.match(prompt, /Return one JSON string property for each exact section name/i);
 });
 
+test('named funding forms add a field-specific audience and omission profile', () => {
+  const profile = resolveReportFormProfile('workcover_pmp');
+  assert.equal(profile.label, 'Queensland Provider Management Plan');
+  assert.match(profile.purpose, /measurable goals/);
+
+  const prompt = buildReportDraftPrompt({
+    professionId: 'physio',
+    reportTypeKey: 'workcover_pmp',
+    reportTitle: 'Provider Management Plan',
+    clientContext: { funding: 'workcover_qld' },
+    assessmentSummary: 'No assessment results available.',
+    sections: ['Current Functional Status'],
+    sectionGuidance: { 'Current Functional Status': { prompt: 'Write max 120 words. Use recorded function.' } },
+  });
+  assert.match(prompt, /FORM-SPECIFIC OUTPUT PROFILE/);
+  assert.match(prompt, /claims manager and treating team/);
+  assert.match(prompt, /Not documented in the available record\./);
+  assert.match(prompt, /short field-ready answers/i);
+});
+
+test('section output is mechanically de-padded and fitted to its form word limit', () => {
+  const facts = Array.from({ length: 30 }, (_, index) => `fact${index + 1}`).join(' ');
+  const verbose = `## Clinical Summary\nThis report aims to provide an update. ${facts}\nPlease do not hesitate to contact us.`;
+  const fitted = normaliseReportSectionOutput(verbose, {
+    section: 'Clinical Summary',
+    guidance: { maxWords: 12 },
+  });
+  assert.doesNotMatch(fitted, /Clinical Summary|This report aims|do not hesitate/i);
+  assert.ok(fitted.split(/\s+/).length <= 12, fitted);
+});
+
+test('word fitting never cuts data-bearing table rows or labelled form domains', () => {
+  const table = [
+    'Test | Result | Norm | Interpretation',
+    '--- | --- | --- | ---',
+    ...Array.from({ length: 18 }, (_, index) => `Test ${index + 1} | ${index + 1} units | Recorded norm ${index + 1} | Recorded interpretation ${index + 1}`),
+  ].join('\n');
+  const fittedTable = normaliseReportSectionOutput(table, {
+    section: 'Objective / Assessment Findings',
+    guidance: { maxWords: 40 },
+  });
+  assert.match(fittedTable, /Test 18 \| 18 units/);
+
+  const domains = [
+    'Daily Activities', 'Self-Care', 'Communication', 'Social & Community Participation',
+    'Learning', 'Home Living', 'Health & Wellbeing',
+  ].map((domain) => `${domain}: ${Array.from({ length: 12 }, (_, index) => `recorded${index + 1}`).join(' ')}`).join('\n');
+  const fittedDomains = normaliseReportSectionOutput(domains, {
+    section: 'Functional Capacity Assessment Results (across 7 NDIS domains)',
+    guidance: { maxWords: 30 },
+  });
+  assert.match(fittedDomains, /Health & Wellbeing:/);
+});
+
 test('whole-report prompt remains below the endpoint ceiling with oversized free text', () => {
   const huge = 'x'.repeat(20_000);
   const sections = Array.from({ length: 12 }, (_, index) => `Section ${index + 1}`);
@@ -195,6 +251,8 @@ test('Generate All makes one schema-backed model call while single Generate and 
   assert.match(generateAll, /validateReportBatchResponse/);
   assert.match(editor, /const handleGenerate = async \(\) =>/);
   assert.match(editor, /const handleTidy = async \(\) =>/);
+  assert.match(editor, /normaliseReportSectionOutput\(response/);
+  assert.ok((editor.match(/buildReportDraftPrompt\(\{/g) || []).length >= 2);
   assert.match(editor, /\[`\$\{activeSection\}_ai_drafted`\]: true/);
 });
 

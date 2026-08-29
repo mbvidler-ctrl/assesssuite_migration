@@ -19,14 +19,14 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...parts) => fs.readFileSync(path.join(repoRoot, ...parts), 'utf8');
 
-test('Physio manifest exposes exactly six versioned tasks and no legacy general AI surfaces', () => {
+test('Physio manifest exposes its six versioned tasks and every operational shared AI surface', () => {
   const ep = getProfession('exercise-physiology');
   const physio = getProfession('physio');
 
   assert.equal(ep.features.legacyGeneralClinicalLlm, true);
   assert.deepEqual(ep.features.aiTaskIds, []);
   assert.deepEqual(ep.features.disabledCoreIntegrationIds, []);
-  assert.equal(physio.features.legacyGeneralClinicalLlm, false);
+  assert.equal(physio.features.legacyGeneralClinicalLlm, true);
   assert.deepEqual(physio.features.aiTaskIds, PHYSIO_AI_TASK_IDS);
   assert.deepEqual(physio.features.disabledCoreIntegrationIds, ['SendSMS', 'GenerateImage']);
   assert.ok(!physio.navigation.allowedPages.includes('AssessmentAudit'));
@@ -44,15 +44,15 @@ test('Physio manifest exposes exactly six versioned tasks and no legacy general 
   );
 });
 
-test('explicit target composition publishes Physio task posture without relying on ambient profession state', () => {
+test('explicit target composition publishes both shared and Physio-native AI posture', () => {
   const capabilities = publicCapabilities(
     { GENERAL_CLINICAL_LLM_ENABLED: '1', LLM_REQUIRED: '1' },
-    { professionId: 'physio', legacyGeneralClinicalLlmAllowed: false },
+    { professionId: 'physio', legacyGeneralClinicalLlmAllowed: true },
   );
 
   assert.deepEqual(capabilities.general_clinical_llm, {
     available: false,
-    reason: 'switched_off',
+    reason: 'unconfigured',
   });
   assert.deepEqual(capabilities.physio_ai_tasks, {
     available: false,
@@ -60,7 +60,7 @@ test('explicit target composition publishes Physio task posture without relying 
   });
 });
 
-test('every Physio-reachable shared surface fences legacy InvokeLLM while preserving non-AI work', () => {
+test('every Physio-reachable shared AI surface retains its provider gate and real invocation path', () => {
   const layout = read('src', 'Layout.jsx');
   const treatmentProtocols = read('src', 'pages', 'TreatmentProtocols.jsx');
   const clientProfile = read('src', 'pages', 'ClientProfile.jsx');
@@ -97,13 +97,18 @@ test('every Physio-reachable shared surface fences legacy InvokeLLM while preser
   assert.match(medicationAlerts, /if \(!ai\.canTrigger\)/);
   assert.equal((reportEditor.match(/if \(!legacyReportAiAllowed\)/g) || []).length, 3);
   assert.match(reportEditor, /legacyReportAiAllowed && !isSignatureSection/);
-  assert.match(soap, /!isLocked && legacySectionAiAllowed/);
-  assert.equal((soap.match(/legacySectionAiAllowed && \(/g) || []).length, 2);
+  assert.match(
+    soap,
+    /sharedSectionAiAllowed\s*=\s*activeProfession\.features\.legacyGeneralClinicalLlm === true/,
+  );
+  assert.match(soap, /!isLocked && sharedSectionAiAllowed/);
+  assert.equal((soap.match(/sharedSectionAiAllowed && \(/g) || []).length, 2);
+  assert.match(soap, /!isLocked && sharedTranscriptDissectionAllowed/);
   assert.match(workspace, /useAiCapability\('physio_ai_tasks'\)/);
   assert.match(workspace, /functions\.invoke\('physioAiTask'/);
 });
 
-test('Physio server refuses Core.InvokeLLM even if its legacy flag is misconfigured on', async () => {
+test('Physio server runs Core.InvokeLLM when the shared clinical AI capability is enabled', async () => {
   const server = await startTestServer({
     PROFESSION: 'physio',
     DEFAULT_APP_ID: 'local-assesssuite-physio',
@@ -120,8 +125,8 @@ test('Physio server refuses Core.InvokeLLM even if its legacy flag is misconfigu
     );
     assert.equal(settings.status, 200, settings.text);
     assert.deepEqual(settings.body?.public_settings?.capabilities?.general_clinical_llm, {
-      available: false,
-      reason: 'switched_off',
+      available: true,
+      reason: 'available',
     });
     assert.deepEqual(settings.body?.public_settings?.capabilities?.physio_ai_tasks, {
       available: false,
@@ -131,10 +136,10 @@ test('Physio server refuses Core.InvokeLLM even if its legacy flag is misconfigu
     const response = await requestJson(
       server,
       `/api/apps/${server.appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', token, body: { prompt: 'This must never reach a provider.' } },
+      { method: 'POST', token, body: { prompt: 'Return a concise physiotherapy test response.' } },
     );
-    assert.equal(response.status, 403, response.text);
-    assert.equal(response.body?.code, 'profession_ai_surface_unavailable');
+    assert.equal(response.status, 200, response.text);
+    assert.ok(response.text.length > 0);
 
     const missingEpisode = await requestJson(
       server,
@@ -156,7 +161,7 @@ test('Physio server refuses Core.InvokeLLM even if its legacy flag is misconfigu
   }
 });
 
-test('Physio server preserves real transcription but refuses legacy transcript-to-SOAP generation', async () => {
+test('Physio server preserves both real transcription and the EP-compatible transcript-to-SOAP tool', async () => {
   const server = await startTestServer({
     PROFESSION: 'physio',
     DEFAULT_APP_ID: 'local-assesssuite-physio',
@@ -174,12 +179,12 @@ test('Physio server preserves real transcription but refuses legacy transcript-t
         token,
         body: {
           action: 'dissect_to_soap',
-          transcript: 'This text must never reach the legacy SOAP model path.',
+          transcript: 'The client reports improving shoulder function and reduced pain.',
         },
       },
     );
-    assert.equal(response.status, 403, response.text);
-    assert.equal(response.body?.code, 'profession_ai_surface_unavailable');
+    assert.equal(response.status, 200, response.text);
+    assert.equal(response.body?.success, true);
   } finally {
     await server.stop();
   }

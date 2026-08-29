@@ -22,9 +22,11 @@ test('profession manifests explicitly admit navigation routes and report surface
   assert.ok(physio.navigation.primaryPages.includes('PhysioEpisodes'));
   assert.ok(physio.navigation.primaryPages.includes('Reports'));
   assert.ok(!physio.navigation.primaryPages.includes('Nutrition'));
-  assert.ok(!physio.navigation.primaryPages.includes('FundingForms'));
+  assert.ok(physio.navigation.primaryPages.includes('FundingForms'));
+  assert.ok(physio.navigation.primaryPages.includes('Customise'));
   assert.ok(!physio.navigation.allowedPages.includes('Nutrition'));
-  assert.ok(!physio.navigation.allowedPages.includes('FundingForms'));
+  assert.ok(physio.navigation.allowedPages.includes('FundingForms'));
+  assert.ok(physio.navigation.allowedPages.includes('Customise'));
   assert.deepEqual(physio.reports.allowedRegions, ['australia']);
   assert.deepEqual(physio.reports.allowedTypeIds, [
     'physio_initial_assessment',
@@ -61,11 +63,12 @@ test('the production route graph is composed per vertical before bundling', () =
   const brandAssets = read('src', 'brandAssets.js');
 
   assert.match(pages, /const PHYSIO_PAGES = \{[\s\S]*"PhysioEpisodes": PhysioEpisodes/);
+  assert.match(pages, /const PHYSIO_PAGES = \{[\s\S]*"FundingForms": FundingForms/);
   assert.match(pages, /const EP_PAGES = \{[\s\S]*"AssessmentAudit": AssessmentAudit/);
   assert.match(pages, /import\.meta\.env\.VITE_PROFESSION === 'physio'[\s\S]*\? PHYSIO_PAGES[\s\S]*: EP_PAGES/);
   assert.doesNotMatch(
     pages.slice(pages.indexOf('const PHYSIO_PAGES'), pages.indexOf('const EP_PAGES')),
-    /AssessmentAudit|ClientConditions|FundingForms|Nutrition/,
+    /AssessmentAudit|ClientConditions|Nutrition/,
   );
   assert.match(layout, /assessmentAuditAvailable = import\.meta\.env\.VITE_PROFESSION === 'exercise-physiology'/);
   assert.match(brandAssets, /assesssuite-logo-header\.png/);

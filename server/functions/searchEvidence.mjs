@@ -1,10 +1,11 @@
 // Shim function: retrieve real, citable evidence for a clinical topic so
 // generation can be grounded (cite only from the supplied list) rather than
-// inventing references. Backed by server/evidence.mjs (OpenAlex). Topic strings
-// only — no client data.
+// inventing references. Backed by the shared PubMed/OpenAlex/Crossref/
+// ClinicalTrials.gov gateway. Topic strings only — no client data.
 //
-// Request body: { query: string, limit?: number, reviewsOnly?: boolean }
-import { searchEvidence } from '../evidence.mjs';
+// Request body: { query: string, limit?: number, reviewsOnly?: boolean,
+//                 includeTrials?: boolean, forceRefresh?: boolean }
+import { searchClinicalEvidence } from '../clinicalEvidence.mjs';
 
 export default async function searchEvidenceFn(ctx) {
   const { body, respond, user } = ctx;
@@ -13,6 +14,12 @@ export default async function searchEvidenceFn(ctx) {
   if (!query.trim()) return respond(400, { error: 'a non-empty query is required' });
   const limit = Math.min(Math.max(Number(body?.limit) || 5, 1), 10);
   const reviewsOnly = body?.reviewsOnly !== false;
-  const result = await searchEvidence(query, { limit, reviewsOnly });
+  const result = await searchClinicalEvidence(query, {
+    limit,
+    reviewsOnly,
+    includeTrials: body?.includeTrials !== false,
+    forceRefresh: body?.forceRefresh === true,
+    cacheRepository: ctx.evidenceCache,
+  });
   return respond(200, result);
 }

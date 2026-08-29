@@ -393,23 +393,27 @@ function matchingParenthesisIndex(source, openingIndex) {
 }
 
 /**
- * The shared SOAP editor retains two legacy InvokeLLM helpers for EP. Physio
- * must never render either helper: its only text-AI surface is the versioned
- * physio.soap_note.v1 workspace included in the exact canary task set.
+ * The shared SOAP editor retains its two InvokeLLM section helpers and the
+ * transcript-to-SOAP action for both products. Physio gates them through the
+ * same enabled profession feature as EP, alongside its versioned workspace.
  */
-export function verifyLegacySoapAiIsolation(source) {
+export function verifySharedSoapAiParity(source) {
   requireTrue(
-    /const\s+legacySectionAiAllowed\s*=\s*activeProfession\.id\s*===\s*['"]exercise-physiology['"]\s*;/.test(source),
-    'artifact_scan_soap_legacy_ai_profession_gate_missing',
+    /const\s+sharedSectionAiAllowed\s*=\s*activeProfession\.features\.legacyGeneralClinicalLlm\s*===\s*true\s*;/.test(source),
+    'artifact_scan_soap_shared_ai_feature_gate_missing',
+  );
+  requireTrue(
+    /const\s+sharedTranscriptDissectionAllowed\s*=\s*activeProfession\.features\.legacyGeneralClinicalLlm\s*===\s*true\s*;/.test(source),
+    'artifact_scan_soap_transcript_ai_feature_gate_missing',
   );
 
   const invokePositions = [];
   const invokePattern = /\bbase44\.integrations\.Core\.InvokeLLM\s*\(/g;
   for (const match of source.matchAll(invokePattern)) invokePositions.push(match.index);
-  requireTrue(invokePositions.length === 2, 'artifact_scan_soap_legacy_ai_call_count_differs');
+  requireTrue(invokePositions.length === 2, 'artifact_scan_soap_shared_ai_call_count_differs');
 
   const guardedRanges = [];
-  const guardPattern = /\{[^\r\n{}]*\blegacySectionAiAllowed\b[^\r\n{}]*&&\s*\(/g;
+  const guardPattern = /\{[^\r\n{}]*\bsharedSectionAiAllowed\b[^\r\n{}]*&&\s*\(/g;
   for (const match of source.matchAll(guardPattern)) {
     const openingIndex = match.index + match[0].lastIndexOf('(');
     guardedRanges.push([openingIndex, matchingParenthesisIndex(source, openingIndex)]);
@@ -418,10 +422,14 @@ export function verifyLegacySoapAiIsolation(source) {
   for (const invokePosition of invokePositions) {
     const rangeIndex = guardedRanges.findIndex(([start, end]) =>
       invokePosition > start && invokePosition < end);
-    requireTrue(rangeIndex >= 0, 'artifact_scan_soap_legacy_ai_reachable_in_physio');
+    requireTrue(rangeIndex >= 0, 'artifact_scan_soap_shared_ai_not_feature_gated');
     containingRanges.add(rangeIndex);
   }
-  requireTrue(containingRanges.size === 2, 'artifact_scan_soap_legacy_ai_guards_not_independent');
+  requireTrue(containingRanges.size === 2, 'artifact_scan_soap_shared_ai_guards_not_independent');
+  requireTrue(
+    /sharedTranscriptDissectionAllowed\s*&&\s*\([\s\S]{0,700}?onClick=\{dissectToSOAP\}/.test(source),
+    'artifact_scan_soap_transcript_action_not_feature_gated',
+  );
   return true;
 }
 
@@ -469,7 +477,7 @@ export function verifyProductionArtifactPosture({
     PROFESSION: PHYSIO_CANARY_PROFESSION_ID,
     DEFAULT_APP_ID: PHYSIO_CANARY_APP_ID,
     LLM_REQUIRED: '1',
-    GENERAL_CLINICAL_LLM_ENABLED: '0',
+    GENERAL_CLINICAL_LLM_ENABLED: '1',
     TRANSCRIPTION_ENABLED: '1',
     DOCUMENT_EXTRACTION_ENABLED: '1',
     OPENAI_HEALTH_DATA_TERMS_CONFIRMED: '1',
@@ -487,7 +495,7 @@ export function verifyProductionArtifactPosture({
     OUTBOUND_EMAIL_ENABLED: '0',
     OUTBOUND_SMS_ENABLED: '0',
     PAYMENTS_ENABLED: '0',
-    ALLOW_OPEN_REGISTRATION: '1',
+    ALLOW_OPEN_REGISTRATION: '0',
     APP_URL: PHYSIO_PUBLIC_APP_URL,
     EXPECTED_APP_URL: PHYSIO_PUBLIC_APP_URL,
     UPLOADS_DIR: PHYSIO_CANARY_UPLOADS_DIR,
@@ -724,7 +732,7 @@ export function buildPhysioProductionCanaryRuntimePlan({
     OPENAI_MODEL_QUALITY: PHYSIO_CANARY_TEXT_MODEL_SNAPSHOTS[1],
     OPENAI_TRANSCRIBE_MODEL: PHYSIO_CANARY_TRANSCRIPTION_MODEL,
     LLM_REQUIRED: '1',
-    GENERAL_CLINICAL_LLM_ENABLED: '0',
+    GENERAL_CLINICAL_LLM_ENABLED: '1',
     TRANSCRIPTION_ENABLED: '1',
     DOCUMENT_EXTRACTION_ENABLED: '1',
     DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '0',
@@ -735,7 +743,7 @@ export function buildPhysioProductionCanaryRuntimePlan({
     // Required by the strict bootstrap posture, but deliberately unused by
     // this journey: the synthetic clinician is provisioned by an authenticated
     // random bootstrap admin and then signs in through the normal login route.
-    ALLOW_OPEN_REGISTRATION: '1',
+    ALLOW_OPEN_REGISTRATION: '0',
     AI_USAGE_USER_ROLLING_24H_USD: String(Math.ceil(maximumCostMicrousd / 1_000_000) + 1),
     AI_USAGE_USER_ROLLING_24H_CALLS: '32',
     AI_USAGE_GLOBAL_MONTHLY_USD: String(Math.ceil(maximumCostMicrousd / 1_000_000) + 1),
@@ -1111,7 +1119,7 @@ function usageRows(dbPath, userId) {
   }
 }
 
-async function proveGenericLlmIsolated(server, subject) {
+async function proveSharedClinicalAiAdmitted(server, subject) {
   const before = usageRows(server.dbPath, subject.user.id);
   const genericResponse = await requestJson(
     server,
@@ -1119,7 +1127,7 @@ async function proveGenericLlmIsolated(server, subject) {
     {
       method: 'POST',
       token: subject.user.token,
-      body: { prompt: 'Synthetic canary request that must never reach a provider.' },
+      body: {},
     },
   );
   const legacySoapResponse = await requestJson(
@@ -1130,18 +1138,18 @@ async function proveGenericLlmIsolated(server, subject) {
       token: subject.user.token,
       body: {
         action: 'dissect_to_soap',
-        transcript: 'Synthetic transcript that must never reach the legacy SOAP provider path.',
+        transcript: '',
       },
     },
   );
   const after = usageRows(server.dbPath, subject.user.id);
   requireTrue(
-    genericResponse.status === 403
-      && genericResponse.body?.code === 'profession_ai_surface_unavailable'
-      && legacySoapResponse.status === 403
-      && legacySoapResponse.body?.code === 'profession_ai_surface_unavailable'
+    genericResponse.status === 400
+      && genericResponse.body?.code === 'prompt_required'
+      && legacySoapResponse.status === 400
+      && legacySoapResponse.body?.code === 'transcript_required'
       && before.length === after.length,
-    'legacy_clinical_llm_reachable_in_physio',
+    'shared_clinical_ai_not_admitted_in_physio',
   );
   return true;
 }
@@ -1675,7 +1683,7 @@ export async function runInsideCanary(environment = process.env) {
     });
     requireTrue(successServer.liveProofEligible === true, 'success_runtime_not_live_proof');
     const successSubject = await setupSyntheticClinician(successServer);
-    await proveGenericLlmIsolated(successServer, successSubject);
+    await proveSharedClinicalAiAdmitted(successServer, successSubject);
     const tasks = await runSixTaskSuccesses(successServer, successSubject, emitProviderProgress);
     const transcription = await runTranscriptionSuccess(successServer, successSubject, fixture);
     emitProviderProgress(7, PHYSIO_CANARY_PROVIDER_TASK_SET[6], transcription.success);
@@ -1698,7 +1706,7 @@ export async function runInsideCanary(environment = process.env) {
     });
     requireTrue(faultServer.liveProofEligible === true, 'fault_runtime_not_live_proof');
     const faultSubject = await setupSyntheticClinician(faultServer);
-    await proveGenericLlmIsolated(faultServer, faultSubject);
+    await proveSharedClinicalAiAdmitted(faultServer, faultSubject);
     const faults = await runFaultPaths(faultServer, faultSubject, fixture);
     for (const taskId of PHYSIO_CANARY_TASK_IDS) tasks[taskId].fault = faults.taskFaults[taskId];
     transcription.fault = faults.transcriptionFault;
@@ -2245,7 +2253,7 @@ export async function produceLocalPhysioExactImageCanary({
       'ALLOW_PAID_PROVIDER_PROBE=1',
       `PHYSIO_CANARY_MAX_COST_MICROUSD=${maximumCostMicrousd}`,
       'LLM_REQUIRED=1',
-      'GENERAL_CLINICAL_LLM_ENABLED=0',
+      'GENERAL_CLINICAL_LLM_ENABLED=1',
       'TRANSCRIPTION_ENABLED=1',
       'DOCUMENT_EXTRACTION_ENABLED=1',
       'DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0',
@@ -2259,7 +2267,7 @@ export async function produceLocalPhysioExactImageCanary({
       'OUTBOUND_EMAIL_ENABLED=0',
       'OUTBOUND_SMS_ENABLED=0',
       'PAYMENTS_ENABLED=0',
-      'ALLOW_OPEN_REGISTRATION=1',
+      'ALLOW_OPEN_REGISTRATION=0',
       `APP_URL=${PHYSIO_PUBLIC_APP_URL}`,
       `EXPECTED_APP_URL=${PHYSIO_PUBLIC_APP_URL}`,
       `UPLOADS_DIR=${PHYSIO_CANARY_UPLOADS_DIR}`,
