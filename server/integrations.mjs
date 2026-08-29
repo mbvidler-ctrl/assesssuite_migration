@@ -754,11 +754,10 @@ function assertKnownInvokeLLMParams(rawBody) {
 
 async function handleInvokeLLM(body, context) {
   assertKnownInvokeLLMParams(body);
-  // The Physio target exposes only its six versioned, schema-bound tasks via
-  // server/functions/physioAiTask.mjs. Even if a deployment flag is
-  // accidentally enabled, a Physio session cannot reach the legacy free-form
-  // Core.InvokeLLM surface. EP remains explicitly opted in through its
-  // validated profession manifest.
+  // Shared EP AI surfaces remain available to a profession only when its
+  // validated manifest opts in. Physio deliberately opts in so those tools
+  // remain functional alongside its six richer, schema-bound tasks in
+  // server/functions/physioAiTask.mjs.
   if (context?.generalClinicalLlmAllowed !== true) {
     throw new LlmAccessError(
       403,
