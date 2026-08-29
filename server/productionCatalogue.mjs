@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 import { createEntityRepository } from './db.mjs';
@@ -40,37 +41,101 @@ function treatmentProtocolCatalogue() {
   if (protocols.length === 0) throw new Error('Production treatment protocol catalogue is empty');
   return protocols;
 }
+
+function recordData(record) {
+  const {
+    id: _id,
+    created_date: _createdDate,
+    updated_date: _updatedDate,
+    created_by: _createdBy,
+    ...data
+  } = record || {};
+  return data;
+}
+
+function indexUnique(records, keyField, label) {
+  const indexed = new Map();
+  for (const record of records) {
+    const key = record?.[keyField];
+    if (typeof key !== 'string' || key.trim() === '') continue;
+    if (indexed.has(key)) {
+      throw new Error(`${label} contains duplicate ${keyField}: ${key}`);
+    }
+    indexed.set(key, record);
+  }
+  return indexed;
+}
+
+function seedCatalogue({ repository, entityName, keyField, records, reconcileExisting = false }) {
+  const existing = repository.listAll();
+  const existingByKey = indexUnique(existing, keyField, `Persisted ${entityName} catalogue`);
+  const incomingByKey = indexUnique(records, keyField, `Bundled ${entityName} catalogue`);
+  if (incomingByKey.size !== records.length) {
+    throw new Error(`Bundled ${entityName} catalogue contains a record without ${keyField}`);
+  }
+
+  let inserted = 0;
+  let reconciled = 0;
+  let retained = 0;
+  for (const record of records) {
+    const persisted = existingByKey.get(record[keyField]);
+    if (!persisted) {
+      repository.create(record, null);
+      inserted += 1;
+      continue;
+    }
+    if (reconcileExisting && !isDeepStrictEqual(recordData(persisted), record)) {
+      repository.replace(persisted.id, record);
+      reconciled += 1;
+      continue;
+    }
+    retained += 1;
+  }
+  return Object.freeze({ inserted, reconciled, retained });
+}
+
 export function runProductionCatalogueSeed({ db, entityNames, environment = process.env }) {
   if (!db || !(entityNames instanceof Set)) {
     throw new TypeError('production catalogue seed requires an open database and entity-name set');
   }
   const assessmentCatalogue = buildRuntimeAssessmentCatalogue(environment).assessments;
+  const canonicalPhysioAssessmentCatalogue = assessmentCatalogue.length > 0
+    && assessmentCatalogue.every((record) => (
+      typeof record?.canonical_id === 'string' && record.canonical_id.trim() !== ''
+    ));
   const catalogues = [
-    ['Assessment', 'name', assessmentCatalogue],
-    ['Exercise', 'name', PRODUCTION_EXERCISE_CATALOGUE],
-    ['TreatmentProtocol', 'condition_name', treatmentProtocolCatalogue()],
+    ['Assessment', canonicalPhysioAssessmentCatalogue ? 'canonical_id' : 'name', assessmentCatalogue,
+      canonicalPhysioAssessmentCatalogue],
+    ['Exercise', 'name', PRODUCTION_EXERCISE_CATALOGUE, false],
+    ['TreatmentProtocol', 'condition_name', treatmentProtocolCatalogue(), false],
   ];
 
   db.exec('BEGIN IMMEDIATE');
   try {
-    for (const [entityName, keyField, records] of catalogues) {
+    const results = {};
+    for (const [entityName, keyField, records, reconcileExisting] of catalogues) {
       if (!entityNames.has(entityName)) {
         throw new Error(`production catalogue entity is unavailable: ${entityName}`);
       }
       const repository = createEntityRepository(db, entityName);
-      const existing = repository.listAll();
-      const existingKeys = new Set(existing.map((record) => record?.[keyField]).filter(Boolean));
-      for (const record of records) {
-        if (!existingKeys.has(record[keyField])) repository.create(record, null);
-      }
+      results[entityName] = seedCatalogue({
+        repository,
+        entityName,
+        keyField,
+        records,
+        reconcileExisting,
+      });
     }
     db.exec('COMMIT');
+    return Object.freeze({
+      assessment_count: assessmentCatalogue.length,
+      exercise_count: PRODUCTION_EXERCISE_CATALOGUE.length,
+      assessment_inserted: results.Assessment.inserted,
+      assessment_reconciled: results.Assessment.reconciled,
+      assessment_retained: results.Assessment.retained,
+    });
   } catch (error) {
     try { db.exec('ROLLBACK'); } catch { /* preserve the seed failure */ }
     throw error;
   }
-  return Object.freeze({
-    assessment_count: assessmentCatalogue.length,
-    exercise_count: PRODUCTION_EXERCISE_CATALOGUE.length,
-  });
 }
