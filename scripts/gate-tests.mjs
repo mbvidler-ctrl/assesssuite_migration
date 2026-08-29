@@ -133,13 +133,23 @@ async function main() {
   const checkoutRefused = checkout.status === 409 && typeof checkout.data?.error === 'string';
   record('G8.17a', checkoutRefused, `createCheckoutSession refuses an already-subscribed account → ${checkout.status} (expect 409)`);
 
+  // This harness deliberately starts the ordinary server without production
+  // Stripe secrets. The webhook route must therefore fail loudly instead of
+  // reviving the retired deterministic provider path. Real signed webhook
+  // processing is proved by the provider tests and the production canary.
   const webhook = await api(`/api/apps/${APP}/functions/stripeWebhook`, {
     method: 'POST', token: adminTok,
     body: { id: 'evt_gatebetacheckout', created: 1800000006, livemode: false, type: 'checkout.session.completed', data: { object: { mode: 'subscription', payment_status: 'paid', customer: 'mock_cus_beta', customer_email: betaMe.data.email, subscription: 'mock_sub_beta', client_reference_id: betaMe.data.id, metadata: { userId: betaMe.data.id, userEmail: betaMe.data.email, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M', appId: APP, professionId: 'exercise-physiology' } } } },
   });
   const betaAfter = await api(`/api/apps/${APP}/entities/User/me`, { token: betaTok });
   const roleUnchanged = betaAfter.data?.role === betaBeforeRole;
-  record('G8.17b', webhook.status === 200 && roleUnchanged, `after checkout.session.completed webhook, role unchanged ('${betaBeforeRole}' → '${betaAfter.data?.role}')`);
+  const providerUnavailable = webhook.status === 503
+    && webhook.data?.code === 'stripe_provider_unavailable';
+  record(
+    'G8.17b',
+    providerUnavailable && roleUnchanged,
+    `unsigned checkout webhook without a configured provider fails loudly (${webhook.status}/${webhook.data?.code || 'no-code'}); role unchanged ('${betaBeforeRole}' → '${betaAfter.data?.role}')`,
+  );
 
   // ---- L1: launch posture (this harness runs against a NORMAL server — no
   //      SELFTEST bypass — so these exercise the real production behaviours) ----

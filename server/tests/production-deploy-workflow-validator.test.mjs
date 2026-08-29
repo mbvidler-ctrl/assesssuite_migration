@@ -591,6 +591,14 @@ test('V09a the seeded launch gate probes the admitted EP application identity', 
   );
 });
 
+test('V09b the seeded launch gate rejects the retired unsigned Stripe success path', () => {
+  const gate = fs.readFileSync(path.join(repoRoot, 'scripts', 'gate-tests.mjs'), 'utf8');
+  assert.match(gate, /webhook\.status === 503/);
+  assert.match(gate, /webhook\.data\?\.code === 'stripe_provider_unavailable'/);
+  assert.match(gate, /providerUnavailable && roleUnchanged/);
+  assert.doesNotMatch(gate, /webhook\.status === 200 && roleUnchanged/);
+});
+
 test('V10 the release filename preflight allows only root .env.example and scans its content', () => {
   const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
