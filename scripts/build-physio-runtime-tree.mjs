@@ -23,6 +23,7 @@ const fixedResources = Object.freeze([
   'server/local-entity-schemas.json',
   'server/data-import/physiotherapy-assessment-part-0.jsonl',
   'server/data-import/treatmentprotocol-part-0.jsonl',
+  'server/data-import/treatmentprotocol-part-1.jsonl',
   'server/tests/fixtures/physio-exact-image-canary/synthetic-physio-canary.wav',
   'package.json',
   'package-lock.json',

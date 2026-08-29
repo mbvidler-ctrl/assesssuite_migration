@@ -31,7 +31,8 @@ jobs:
       R1_PRE_STAGE2_SHA: 8237e6518bd739db24711e1d4ee70b3e4c3f9d36
       R1_STAGE2_FOUNDATION_SHA: 68f277e6511440232ed299402cc42c598110ca65
       R1_STAGE2_FUNCTIONAL_SHA: 553b6ea49628d6e434eb852f61ce20c353d77eec
-      R1_COMPARISON_SHA: 27cec6656472788f491cdb447c996bcf4a0b4bb1
+      R1_STAGE2_TEST_SHA: 27cec6656472788f491cdb447c996bcf4a0b4bb1
+      R1_COMPARISON_SHA: e3957f34f0585209393237dca26c16755d4501f8
       R1_SNAPSHOT_ID: vs_kmp35PK891uLO2MA74
       R1_SNAPSHOT_DIGEST: 1004f97fb148027c6ef04598860723d1583db984e54c843fa938e6b7e64d2ac6
       R1_VOLUME_ID: vol_vgn67klw1jq1km04
@@ -64,6 +65,7 @@ jobs:
           [[ "$R1_PRE_STAGE2_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_STAGE2_FOUNDATION_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_STAGE2_FUNCTIONAL_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_STAGE2_TEST_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_COMPARISON_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_SNAPSHOT_ID" =~ ^vs_[A-Za-z0-9]+$ ]]
           [[ "$R1_SNAPSHOT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
@@ -82,13 +84,14 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$R1_COMPARISON_SHA" ]]
-          [[ "$(git rev-parse HEAD^)" == "$R1_STAGE2_FUNCTIONAL_SHA" ]]
-          [[ "$(git rev-parse HEAD^^)" == "$R1_STAGE2_FOUNDATION_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^)" == "$R1_PRE_STAGE2_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^)" == "$R1_RUNTIME_FIX_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^^)" == "$R1_ORIGIN_FIX_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^^^)" == "$R1_FOUNDATION_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^^^^)" == "$R1_BASELINE_SHA" ]]
+          [[ "$(git rev-parse HEAD^)" == "$R1_STAGE2_TEST_SHA" ]]
+          [[ "$(git rev-parse HEAD^^)" == "$R1_STAGE2_FUNCTIONAL_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^)" == "$R1_STAGE2_FOUNDATION_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^^)" == "$R1_PRE_STAGE2_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^^^)" == "$R1_RUNTIME_FIX_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^^^^)" == "$R1_ORIGIN_FIX_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^^^^^)" == "$R1_FOUNDATION_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^^^^^^)" == "$R1_BASELINE_SHA" ]]
           actual="$RUNNER_TEMP/r1-changed-files.txt"
           expected="$RUNNER_TEMP/r1-expected-files.txt"
           git diff --name-only "$R1_BASELINE_SHA..$R1_COMPARISON_SHA" | LC_ALL=C sort >"$actual"
@@ -380,6 +383,7 @@ jobs:
             --arg pre_stage2_sha "$R1_PRE_STAGE2_SHA" \
             --arg stage2_foundation_sha "$R1_STAGE2_FOUNDATION_SHA" \
             --arg stage2_functional_sha "$R1_STAGE2_FUNCTIONAL_SHA" \
+            --arg stage2_test_sha "$R1_STAGE2_TEST_SHA" \
             --arg snapshot_id "$R1_SNAPSHOT_ID" \
             --arg snapshot_digest "$R1_SNAPSHOT_DIGEST" \
             --arg volume_id "$R1_VOLUME_ID" \
@@ -387,7 +391,7 @@ jobs:
             --argjson catalogue_count "$R1_CATALOGUE_COUNT" \
             --arg catalogue_checksum "$R1_CATALOGUE_CHECKSUM" \
             '{
-              contract_version: "assesssuite-physio-r1-comparison-deploy/1.1.0",
+              contract_version: "assesssuite-physio-r1-comparison-deploy/1.2.0",
               result: "PASS",
               application: $application,
               application_sha: $application_sha,
@@ -396,6 +400,7 @@ jobs:
               pre_stage2_sha: $pre_stage2_sha,
               stage2_foundation_sha: $stage2_foundation_sha,
               stage2_functional_sha: $stage2_functional_sha,
+              stage2_test_sha: $stage2_test_sha,
               source_snapshot_id: $snapshot_id,
               source_snapshot_digest: $snapshot_digest,
               isolated_volume_id: $volume_id,
