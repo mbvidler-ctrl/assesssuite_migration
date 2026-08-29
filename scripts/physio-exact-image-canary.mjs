@@ -1134,7 +1134,7 @@ function usageRows(dbPath, userId) {
   }
 }
 
-async function proveGenericLlmIsolated(server, subject) {
+async function proveSharedClinicalAiAdmitted(server, subject) {
   const before = usageRows(server.dbPath, subject.user.id);
   const genericResponse = await requestJson(
     server,
@@ -1142,7 +1142,11 @@ async function proveGenericLlmIsolated(server, subject) {
     {
       method: 'POST',
       token: subject.user.token,
-      body: { prompt: 'Synthetic canary request that must never reach a provider.' },
+      // An empty prompt reaches the shared surface's own request validator only
+      // when the active profession admits Core.InvokeLLM. This proves Physio
+      // parity without adding an unbounded provider call to the exact eight-call
+      // canary contract.
+      body: {},
     },
   );
   const legacySoapResponse = await requestJson(
@@ -1153,18 +1157,20 @@ async function proveGenericLlmIsolated(server, subject) {
       token: subject.user.token,
       body: {
         action: 'dissect_to_soap',
-        transcript: 'Synthetic transcript that must never reach the legacy SOAP provider path.',
+        // Likewise, the transcript validator is downstream of the surfaced
+        // transcribeSession action and capability gate, but upstream of egress.
+        transcript: '',
       },
     },
   );
   const after = usageRows(server.dbPath, subject.user.id);
   requireTrue(
-    genericResponse.status === 403
-      && genericResponse.body?.code === 'profession_ai_surface_unavailable'
-      && legacySoapResponse.status === 403
-      && legacySoapResponse.body?.code === 'profession_ai_surface_unavailable'
+    genericResponse.status === 400
+      && genericResponse.body?.code === 'prompt_required'
+      && legacySoapResponse.status === 400
+      && legacySoapResponse.body?.code === 'transcript_required'
       && before.length === after.length,
-    'legacy_clinical_llm_reachable_in_physio',
+    'shared_clinical_ai_not_admitted_in_physio',
   );
   return true;
 }
@@ -1698,7 +1704,7 @@ export async function runInsideCanary(environment = process.env) {
     });
     requireTrue(successServer.liveProofEligible === true, 'success_runtime_not_live_proof');
     const successSubject = await setupSyntheticClinician(successServer);
-    await proveGenericLlmIsolated(successServer, successSubject);
+    await proveSharedClinicalAiAdmitted(successServer, successSubject);
     const tasks = await runSixTaskSuccesses(successServer, successSubject, emitProviderProgress);
     const transcription = await runTranscriptionSuccess(successServer, successSubject, fixture);
     emitProviderProgress(7, PHYSIO_CANARY_PROVIDER_TASK_SET[6], transcription.success);
@@ -1721,7 +1727,7 @@ export async function runInsideCanary(environment = process.env) {
     });
     requireTrue(faultServer.liveProofEligible === true, 'fault_runtime_not_live_proof');
     const faultSubject = await setupSyntheticClinician(faultServer);
-    await proveGenericLlmIsolated(faultServer, faultSubject);
+    await proveSharedClinicalAiAdmitted(faultServer, faultSubject);
     const faults = await runFaultPaths(faultServer, faultSubject, fixture);
     for (const taskId of PHYSIO_CANARY_TASK_IDS) tasks[taskId].fault = faults.taskFaults[taskId];
     transcription.fault = faults.transcriptionFault;

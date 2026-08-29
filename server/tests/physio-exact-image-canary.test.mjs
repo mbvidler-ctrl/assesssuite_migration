@@ -909,9 +909,11 @@ test('inside journey uses normal authenticated routes for all exact tasks, trans
   assert.match(source, /integration-endpoints\/Core\/ExtractDataFromUploadedFile/);
   assert.match(source, /integration-endpoints\/Core\/InvokeLLM/);
   assert.match(source, /action:\s*'dissect_to_soap'/);
-  assert.match(source, /legacySoapResponse\.status === 403/);
-  assert.match(source, /genericResponse\.status === 403/);
-  assert.match(source, /profession_ai_surface_unavailable/);
+  assert.match(source, /legacySoapResponse\.status === 400/);
+  assert.match(source, /legacySoapResponse\.body\?\.code === 'transcript_required'/);
+  assert.match(source, /genericResponse\.status === 400/);
+  assert.match(source, /genericResponse\.body\?\.code === 'prompt_required'/);
+  assert.match(source, /shared_clinical_ai_not_admitted_in_physio/);
   assert.match(source, /before\.length === after\.length/);
   assert.match(source, /provider_request_id_hash === usage\.provider_request_id_hash/);
   assert.match(source, /persistEditableTaskDraft/);
