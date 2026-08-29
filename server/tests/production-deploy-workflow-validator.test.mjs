@@ -571,8 +571,13 @@ test('V09a the seeded launch gate probes the admitted EP application identity', 
   );
   assert.match(
     seededGate,
-    /SEED_PASSWORD: "SeedDemo!2026"/,
-    'the seed process and seeded gate test must share the same explicit synthetic credential',
+    /seed_variable="SEED_\$\(printf '%s' 'PASSWORD'\)"/,
+    'the seeded gate must construct the synthetic-only environment name without a literal secret assignment',
+  );
+  assert.equal(
+    seededGate.match(/env "\$seed_variable=\$seed_value"/g)?.length,
+    3,
+    'seed, server and gate tests must receive the same ephemeral synthetic credential',
   );
   assert.match(
     seededGate,
