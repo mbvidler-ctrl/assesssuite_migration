@@ -12,6 +12,10 @@ const dependencyAudit = fs.readFileSync(
   path.join(repoRoot, 'scripts', 'check-dependency-audit.mjs'),
   'utf8',
 );
+const referralBrowserConfig = fs.readFileSync(
+  path.join(repoRoot, 'e2e', 'referral-uploader', 'vite.config.mjs'),
+  'utf8',
+);
 
 test('CI rejects every .env variant and scans the exact pull-request diff with the pinned scanner', () => {
   assert.match(ci, /BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
@@ -31,6 +35,11 @@ test('hosted CI and aggregate assurance retain the split and safe-HTML release s
   assert.match(ci, /npm run test:safe-html-output/);
   assert.match(assurance, /'split-hosting-boundary\.test\.mjs'/);
   assert.match(assurance, /'static-spa-routing\.test\.mjs'/);
+});
+
+test('the referral browser harness pins an explicit EP build identity', () => {
+  assert.match(referralBrowserConfig, /'import\.meta\.env\.VITE_PROFESSION': JSON\.stringify\('exercise-physiology'\)/);
+  assert.match(referralBrowserConfig, /'import\.meta\.env\.VITE_BASE44_APP_ID': JSON\.stringify\('local-assesssuite'\)/);
 });
 
 test('dependency exceptions bind both advisory ID and reviewed package name', () => {
