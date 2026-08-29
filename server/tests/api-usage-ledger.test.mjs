@@ -9,6 +9,7 @@ import {
   ApiUsageError,
   calculateChatCostMicrousd,
   calculateTranscriptionCostMicrousd,
+  calculateTranscriptionTokenCostMicrousd,
   createApiUsageService,
   ensureApiUsageSchema,
 } from '../apiUsage.mjs';
@@ -61,10 +62,51 @@ test('model price registry produces integer microusd for chat and transcription'
     model: 'whisper-1',
     audioSeconds: 30 * 60,
   }), 180_000);
+  assert.equal(calculateTranscriptionTokenCostMicrousd({
+    model: 'gpt-4o-transcribe-diarize',
+    inputTokens: 1_200,
+    outputTokens: 75,
+  }), 3_750);
   assert.throws(
     () => calculateChatCostMicrousd({ model: 'unreviewed-model', inputTokens: 1, outputTokens: 1 }),
     (error) => error instanceof ApiUsageError && error.code === 'ai_usage_model_unpriced',
   );
+});
+
+test('usage admission accepts both approved transcription price classes and rejects cross-feature models', () => {
+  const f = fixture();
+  try {
+    assert.doesNotThrow(() => f.service.reserve({
+      userId: 'user-a',
+      provider: 'openai',
+      feature: 'transcription',
+      model: 'whisper-1',
+      estimatedCostMicrousd: 600,
+    }));
+    assert.doesNotThrow(() => f.service.reserve({
+      userId: 'user-a',
+      provider: 'openai',
+      feature: 'transcription',
+      model: 'gpt-4o-transcribe-diarize',
+      estimatedCostMicrousd: 600,
+    }));
+    assert.throws(
+      () => f.service.reserve({
+        userId: 'user-a',
+        provider: 'openai',
+        feature: 'transcription',
+        model: 'gpt-4.1-mini',
+        estimatedCostMicrousd: 600,
+      }),
+      (error) => error instanceof ApiUsageError && error.code === 'ai_usage_model_unpriced',
+    );
+    assert.throws(
+      () => reserveChat(f.service, { model: 'whisper-1', estimatedCostMicrousd: 600 }),
+      (error) => error instanceof ApiUsageError && error.code === 'ai_usage_model_unpriced',
+    );
+  } finally {
+    f.close();
+  }
 });
 
 test('user cap admits the exact boundary, refuses excess, and isolates users', () => {

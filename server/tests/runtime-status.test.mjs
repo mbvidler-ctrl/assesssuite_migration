@@ -48,7 +48,7 @@ const REAL_PHYSIO_PROVIDER_CONFIGURATION = Object.freeze({
   ...REAL_PROVIDER_CONFIGURATION,
   PROFESSION: 'physio',
   DEFAULT_APP_ID: 'local-assesssuite-physio',
-  GENERAL_CLINICAL_LLM_ENABLED: '0',
+  GENERAL_CLINICAL_LLM_ENABLED: '1',
 });
 
 const PHYSIO_PRODUCTION_CONFIGURATION = Object.freeze({
@@ -206,7 +206,7 @@ test('enabled dependencies require real fail-loud provider configuration and moc
   });
   assert.equal(configuredPhysio.ready, true);
   assert.deepEqual(configuredPhysio.dependencies.general_clinical_llm, {
-    enabled: false, required: false, ready: true, status: 'disabled',
+    enabled: true, required: true, ready: true, status: 'ready',
   });
   assert.deepEqual(configuredPhysio.dependencies.physio_ai_tasks, {
     enabled: true, required: true, ready: true, status: 'ready',
@@ -217,7 +217,7 @@ test('enabled dependencies require real fail-loud provider configuration and moc
     OPENAI_API_KEY: undefined,
   });
   assert.equal(physioWithoutProvider.ready, false);
-  assert.equal(physioWithoutProvider.dependencies.general_clinical_llm.status, 'disabled');
+  assert.equal(physioWithoutProvider.dependencies.general_clinical_llm.status, 'unavailable');
   assert.equal(physioWithoutProvider.dependencies.physio_ai_tasks.status, 'unavailable');
 
   const physioWithoutFailLoud = resolveDependencyReadiness({
@@ -225,7 +225,7 @@ test('enabled dependencies require real fail-loud provider configuration and moc
     LLM_REQUIRED: '0',
   });
   assert.equal(physioWithoutFailLoud.ready, false);
-  assert.equal(physioWithoutFailLoud.dependencies.general_clinical_llm.status, 'disabled');
+  assert.equal(physioWithoutFailLoud.dependencies.general_clinical_llm.status, 'unavailable');
   assert.equal(physioWithoutFailLoud.dependencies.physio_ai_tasks.status, 'unavailable');
 
   const noFailLoud = resolveDependencyReadiness({

@@ -114,7 +114,7 @@ export function resolvePhysioProductionPosture(environment = process.env) {
     PARITY_ASSURANCE_MODE: '0',
     ALLOW_OPEN_REGISTRATION: r1Comparison ? '0' : '1',
     OUTBOUND_SMS_ENABLED: '0',
-    GENERAL_CLINICAL_LLM_ENABLED: '0',
+    GENERAL_CLINICAL_LLM_ENABLED: '1',
     LLM_REQUIRED: '1',
     TRANSCRIPTION_ENABLED: '1',
     DOCUMENT_EXTRACTION_ENABLED: '1',
