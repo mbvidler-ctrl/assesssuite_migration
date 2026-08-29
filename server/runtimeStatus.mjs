@@ -6,7 +6,11 @@ import {
 } from '../packages/profession-config/runtime.mjs';
 import { generalClinicalLlmSwitchedOn } from './capabilities.mjs';
 import { capabilityEnabled } from './capabilityFlags.mjs';
-import { resolvePhysioProductionPosture } from './productionPosture.mjs';
+import {
+  PHYSIO_R1_COMPARISON_PUBLIC_URL,
+  PHYSIO_R1_COMPARISON_VARIANT,
+  resolvePhysioProductionPosture,
+} from './productionPosture.mjs';
 import { buildRuntimeAssessmentCatalogue } from './runtimeCatalogue.mjs';
 
 export const RUNTIME_STATUS_CONTRACT_VERSION = 'assesssuite-runtime-status/1.0.0';
@@ -212,9 +216,12 @@ function dependencyState({ enabled, configured, failClosed = true, required = en
 export function resolveDependencyReadiness(environment = process.env) {
   const realProviderPosture = isRealProviderPosture(environment);
   const isPhysio = environment.PROFESSION === 'physio';
+  const r1Comparison = environment.ASSESSSUITE_DEPLOYMENT_VARIANT
+    === PHYSIO_R1_COMPARISON_VARIANT;
   const strictPhysioProduction = isPhysio
     && environment.NODE_ENV === 'production'
-    && environment.PHYSIO_EXACT_IMAGE_CANARY_MODE !== '1';
+    && environment.PHYSIO_EXACT_IMAGE_CANARY_MODE !== '1'
+    && !r1Comparison;
   const physioTrialConfigured = environment.PROFESSION !== 'physio'
     || /^[1-9][0-9]*$/.test(String(environment.STRIPE_TRIAL_PERIOD_DAYS || '').trim());
   const openAiConfigured = realProviderPosture
@@ -474,7 +481,10 @@ function resolveIdentityStatus(environment, activeContract) {
     });
   }
   const production = environment.NODE_ENV === 'production';
-  const expectedUrl = `https://${expected.profession.deployment.intendedAppHost}`;
+  const expectedUrl = environment.ASSESSSUITE_DEPLOYMENT_VARIANT
+    === PHYSIO_R1_COMPARISON_VARIANT
+    ? PHYSIO_R1_COMPARISON_PUBLIC_URL
+    : `https://${expected.profession.deployment.intendedAppHost}`;
   const identityMatches = Boolean(
     activeContract
     && activeContract.professionId === expected.professionId

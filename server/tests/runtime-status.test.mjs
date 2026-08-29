@@ -77,6 +77,19 @@ const PHYSIO_PRODUCTION_CONFIGURATION = Object.freeze({
   SENTRY_RELEASE: `physio-production@${RELEASE_SHA}`,
 });
 
+const PHYSIO_R1_COMPARISON_CONFIGURATION = Object.freeze({
+  ...PHYSIO_PRODUCTION_CONFIGURATION,
+  ASSESSSUITE_DEPLOYMENT_VARIANT: 'physio-r1-comparison',
+  EXPECTED_APP_URL: 'https://assesssuite-physio-r1.fly.dev',
+  APP_URL: 'https://assesssuite-physio-r1.fly.dev',
+  ALLOW_OPEN_REGISTRATION: '0',
+  PAYMENTS_ENABLED: '0',
+  STRIPE_SECRET_KEY: undefined,
+  STRIPE_WEBHOOK_SECRET: undefined,
+  STRIPE_PRICE_ID_MONTHLY: undefined,
+  STRIPE_PRICE_ID_ANNUAL: undefined,
+});
+
 function withProcessEnvironment(overrides, callback) {
   const prior = new Map();
   for (const [name, value] of Object.entries(overrides)) {
@@ -445,6 +458,49 @@ test('production release and identity failures independently fail readiness', ()
   assert.equal(disabledPayments.ready, false);
   assert.ok(disabledPayments.failures.includes('production_posture_mismatch'));
   assert.ok(disabledPayments.failures.includes('dependency_unavailable:payments'));
+});
+
+test('isolated R1 comparison accepts its own identity and deliberately disabled payments', () => {
+  const environment = {
+    ...PHYSIO_R1_COMPARISON_CONFIGURATION,
+    RELEASE_SHA,
+    BUILD_TIMESTAMP,
+    SENTRY_RELEASE: `physio-production@${RELEASE_SHA}`,
+  };
+  const dependencies = resolveDependencyReadiness(environment);
+  assert.deepEqual(dependencies.dependencies.payments, {
+    enabled: false,
+    required: false,
+    ready: true,
+    status: 'disabled',
+  });
+
+  const snapshot = assembleRuntimeSnapshot({
+    environment,
+    activeContract: {
+      professionId: 'physio',
+      appId: 'local-assesssuite-physio',
+    },
+    database: passingDatabaseFixture({ PROFESSION: 'physio' }),
+    dependencies,
+  });
+  assert.equal(snapshot.ready, true);
+  assert.deepEqual(snapshot.failures, []);
+
+  const wrongComparisonUrl = assembleRuntimeSnapshot({
+    environment: {
+      ...environment,
+      APP_URL: 'https://physio.app.assesssuite.com',
+    },
+    activeContract: {
+      professionId: 'physio',
+      appId: 'local-assesssuite-physio',
+    },
+    database: passingDatabaseFixture({ PROFESSION: 'physio' }),
+    dependencies,
+  });
+  assert.equal(wrongComparisonUrl.ready, false);
+  assert.ok(wrongComparisonUrl.failures.includes('runtime_identity_mismatch'));
 });
 
 test('seeded EP and Physio servers publish complete positive runtime matrices', async () => {
