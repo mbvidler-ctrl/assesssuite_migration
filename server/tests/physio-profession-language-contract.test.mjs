@@ -48,13 +48,21 @@ test('Physio-exposed SOAP and report paths compose terminology from the active m
     conditions: readSource('src/pages/ClientConditions.jsx'),
   };
 
-  for (const [name, source] of Object.entries(sources)) {
+  for (const [name, source] of Object.entries(sources).filter(([name]) => name !== 'reportGeneration')) {
     assert.match(
       source,
       /buildTimeProfession as activeProfession/,
       `${name} must bind to the validated build-time profession`,
     );
   }
+
+  assert.match(sources.reportGeneration, /import \{ getProfession \}/);
+  assert.match(sources.reportGeneration, /import\.meta\.env\?\.VITE_PROFESSION/);
+  assert.match(sources.reportGeneration, /return getProfession\(professionId\.trim\(\)\)/);
+  assert.match(
+    sources.reportGeneration,
+    /const activeProfession = resolveReportProfession\(professionId\)/,
+  );
 
   assert.match(sources.soap, /activeProfession\.clinicalPromptRole/g);
   assert.match(sources.sectionEditor, /activeProfession\.clinicalPromptRole/);
