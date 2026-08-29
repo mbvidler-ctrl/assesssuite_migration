@@ -302,6 +302,10 @@ const TRANSCRIPT_ARTIFACT_SCHEMA = {
     agreed_actions: { type: 'array', items: { type: 'string' } },
     follow_up_items: { type: 'array', items: { type: 'string' } },
     red_flags_or_escalations: { type: 'array', items: { type: 'string' } },
+    patient_facing_summary: { type: 'string' },
+    referrer_update: { type: 'string' },
+    home_program_actions: { type: 'array', items: { type: 'string' } },
+    unresolved_clinical_questions: { type: 'array', items: { type: 'string' } },
     soap: {
       type: 'object',
       properties: {
@@ -317,21 +321,26 @@ const TRANSCRIPT_ARTIFACT_SCHEMA = {
   required: [
     'concise_summary', 'history_and_symptoms', 'objective_observations',
     'interventions_and_education', 'goals_and_preferences', 'agreed_actions',
-    'follow_up_items', 'red_flags_or_escalations', 'soap', 'source_segments',
+    'follow_up_items', 'red_flags_or_escalations', 'patient_facing_summary',
+    'referrer_update', 'home_program_actions', 'unresolved_clinical_questions',
+    'soap', 'source_segments',
   ],
 };
 
 function buildTranscriptArtifactPrompt(session) {
+  const activeProfession = resolveActiveProfessionContract(process.env).profession;
   const transcript = session.segments
     .filter((segment) => segment.status === 'ready' && segment.transcriptText)
     .map((segment) => `[Recording segment ${segment.sequence}]\n${segment.transcriptText}`)
     .join('\n\n');
   return [
-    `You are a clinical documentation assistant supporting a ${resolveActiveProfessionContract(process.env).clinicalPromptRole}.`,
+    `You are a clinical documentation assistant supporting a ${activeProfession.clinicalPromptRole}.`,
     'Turn the consultation transcript into a concise, review-ready clinical workspace.',
     'Use only facts present in the transcript. Do not infer diagnoses, measurements, consent, tests, interventions, goals or decisions that were not spoken.',
     'Preserve uncertainty and speaker attribution where it matters. Use Australian English.',
     'The SOAP draft must be concise and clinically useful. Put absent content in an empty string or empty array rather than inventing it.',
+    'Prepare a short plain-language patient summary, a concise referrer update, and home-program actions only when those details were actually discussed.',
+    'Put ambiguities, missing measurements and items requiring clinician confirmation in unresolved_clinical_questions.',
     'List the zero-based recording segment numbers that materially support the output in source_segments.',
     '',
     transcript.slice(0, 300_000),
@@ -339,8 +348,9 @@ function buildTranscriptArtifactPrompt(session) {
 }
 
 function buildSoapPrompt(transcript) {
+  const activeProfession = resolveActiveProfessionContract(process.env).profession;
   return [
-    'You are a clinical scribe for an allied-health (exercise physiology) practice.',
+    `You are a clinical scribe supporting a ${activeProfession.clinicalPromptRole} in an Australian ${activeProfession.disciplineName.toLowerCase()} practice.`,
     'Dissect the session transcript below into the four sections of a SOAP note.',
     'Use only content grounded in the transcript; do not invent findings, measurements or history.',
     'Write concise clinical prose in Australian English (no contractions; professional register).',
@@ -598,6 +608,15 @@ export default async function transcribeSession(ctx) {
     }
     if (!session.transcriptText.trim()) {
       return respond(409, { code: 'transcription_not_ready', error: 'At least one recording segment must be transcribed first.' });
+    }
+    if (session.status === 'ready' && session.artifacts) {
+      return respond(200, {
+        success: true,
+        simulated: false,
+        replayed: true,
+        artifacts: session.artifacts,
+        persistent_session_id: session.id,
+      });
     }
     if (!llmEnabled()) {
       return respond(503, { code: TRANSCRIPTION_UNCONFIGURED_CODE, error: 'Clinical transcript structuring is not configured on this server.' });

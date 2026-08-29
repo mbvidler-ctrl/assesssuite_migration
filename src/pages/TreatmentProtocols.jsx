@@ -220,6 +220,10 @@ export default function TreatmentProtocols() {
   const [catalogueError, setCatalogueError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [evidenceGroundingNote, setEvidenceGroundingNote] = useState(null);
+  const [evidenceQuery, setEvidenceQuery] = useState("");
+  const [evidenceSearch, setEvidenceSearch] = useState(null);
+  const [evidenceSearchBusy, setEvidenceSearchBusy] = useState(false);
+  const [evidenceSearchError, setEvidenceSearchError] = useState("");
   const [protocolIssues, setProtocolIssues] = useState([]);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -494,6 +498,32 @@ export default function TreatmentProtocols() {
     }));
   };
 
+  const runEvidenceSearch = async (event, { forceRefresh = false } = {}) => {
+    event?.preventDefault?.();
+    const query = evidenceQuery.trim().slice(0, CUSTOM_CONDITION_MAX_LENGTH);
+    if (!query) return;
+    setEvidenceSearchBusy(true);
+    setEvidenceSearchError("");
+    try {
+      const response = await base44.functions.invoke("searchEvidence", {
+        query,
+        limit: 10,
+        reviewsOnly: true,
+        includeTrials: true,
+        forceRefresh,
+      });
+      const payload = response?.data ?? response;
+      setEvidenceSearch(payload);
+      if (!Array.isArray(payload?.results) || payload.results.length === 0) {
+        setEvidenceSearchError("No citable sources were returned. Try a more specific condition or intervention.");
+      }
+    } catch (error) {
+      setEvidenceSearchError(error?.message || "Evidence search is temporarily unavailable.");
+    } finally {
+      setEvidenceSearchBusy(false);
+    }
+  };
+
   return (
     <>
       <Toaster richColors position="top-center" />
@@ -509,6 +539,54 @@ export default function TreatmentProtocols() {
               <p className="text-slate-600">Evidence-informed {activeProfession.lexicon.protocol.toLowerCase()} reference frameworks</p>
             </div>
           </div>
+
+          <Card className="border-blue-200 bg-white/90">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg"><Search className="h-5 w-5 text-blue-700" />Clinical research search</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form className="flex flex-col gap-2 sm:flex-row" onSubmit={runEvidenceSearch}>
+                <Input
+                  aria-label="Search clinical research"
+                  value={evidenceQuery}
+                  onChange={(event) => setEvidenceQuery(event.target.value)}
+                  maxLength={CUSTOM_CONDITION_MAX_LENGTH}
+                  placeholder="Condition, intervention or outcome (no patient details)"
+                />
+                <Button type="submit" disabled={evidenceSearchBusy || !evidenceQuery.trim()}>
+                  {evidenceSearchBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}Search sources
+                </Button>
+                {evidenceSearch && (
+                  <Button type="button" variant="outline" disabled={evidenceSearchBusy} onClick={(event) => runEvidenceSearch(event, { forceRefresh: true })}>
+                    <RefreshCw className="mr-2 h-4 w-4" />Refresh sources
+                  </Button>
+                )}
+              </form>
+              <p className="text-xs text-slate-600">PubMed, OpenAlex, Crossref and ClinicalTrials.gov results are de-duplicated and shared from the evidence cache for 30 days. Topic-only queries are sent to research services.</p>
+              {evidenceSearchError && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{evidenceSearchError}</p>}
+              {evidenceSearch?.cache && (
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                  <Badge variant="outline">{evidenceSearch.cache.mode === "hit" ? "Shared cached result" : evidenceSearch.cache.mode === "stale_fallback" ? "Cached fallback" : "Fresh provider result"}</Badge>
+                  {evidenceSearch.cache.fetched_at && <span>Retrieved {new Date(evidenceSearch.cache.fetched_at).toLocaleString("en-AU")}</span>}
+                  {evidenceSearch.cache.expires_at && <span>· refresh due {new Date(evidenceSearch.cache.expires_at).toLocaleDateString("en-AU")}</span>}
+                </div>
+              )}
+              {Array.isArray(evidenceSearch?.results) && evidenceSearch.results.length > 0 && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {evidenceSearch.results.map((result) => (
+                    <a key={`${result.doi || result.pmid || result.nct_id || result.title}`} href={result.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 p-4 transition hover:border-blue-300 hover:bg-blue-50/40">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-semibold text-slate-900">{result.title}</p>
+                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                      </div>
+                      <p className="mt-2 text-xs text-slate-600">{[result.authors?.slice(0, 3).join(", "), result.year, result.evidence_type?.replaceAll("_", " ")].filter(Boolean).join(" · ")}</p>
+                      <p className="mt-2 text-[11px] text-slate-500">Sources: {(result.sources || [result.source]).filter(Boolean).join(", ")}</p>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Protocol disclaimer popup */}
           {!disclaimerDismissed && (

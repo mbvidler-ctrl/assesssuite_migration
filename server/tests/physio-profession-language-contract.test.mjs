@@ -87,6 +87,18 @@ test('Physio-exposed SOAP and report paths compose terminology from the active m
   }
 });
 
+test('shared server AI and transcription defaults resolve the active profession at runtime', () => {
+  const llm = readSource('server/llm.mjs');
+  const transcription = readSource('server/functions/transcribeSession.mjs');
+
+  assert.match(llm, /resolveActiveProfessionContract\(process\.env\)\.profession/);
+  assert.match(llm, /activeProfession\.clinicalPromptRole/);
+  assert.match(transcription, /resolveActiveProfessionContract\(process\.env\)\.profession/);
+  assert.match(transcription, /activeProfession\.clinicalPromptRole/);
+  assert.doesNotMatch(llm, /allied-health \(exercise physiology\) platform/i);
+  assert.doesNotMatch(transcription, /allied-health \(exercise physiology\) practice/i);
+});
+
 test('Physio routes use native funding and recovery-nutrition workspaces', () => {
   const routes = readSource('src/pages.config.js');
   assert.match(routes, /const PHYSIO_PAGES = \{[\s\S]*"FundingForms": PhysioFundingForms/);

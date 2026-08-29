@@ -118,12 +118,28 @@ test('persistent transcription survives bounded segment upload, transcription an
     });
     assert.equal(finished.body.session.status, 'ready');
 
+    const attachedAfterCompletion = await invoke(server, user.token, 'manageTranscriptionSession', {
+      action: 'attach', org_id: org.id, session_id: sessionId,
+      client_id: null, appointment_id: null, care_episode_id: null,
+      label: 'Completed consultation attached after review',
+    });
+    assert.equal(attachedAfterCompletion.status, 200, attachedAfterCompletion.text);
+    assert.equal(attachedAfterCompletion.body.session.status, 'ready');
+    assert.equal(attachedAfterCompletion.body.session.label, 'Completed consultation attached after review');
+
     const discarded = await invoke(server, user.token, 'manageTranscriptionSession', {
       action: 'discard', org_id: org.id, session_id: sessionId,
     });
     assert.equal(discarded.status, 200, discarded.text);
     assert.equal(discarded.body.session.status, 'discarded');
     assert.equal(discarded.body.session.transcript, '');
+    const attachDiscarded = await invoke(server, user.token, 'manageTranscriptionSession', {
+      action: 'attach', org_id: org.id, session_id: sessionId,
+      client_id: null, appointment_id: null, care_episode_id: null,
+      label: 'Must remain discarded',
+    });
+    assert.equal(attachDiscarded.status, 409, attachDiscarded.text);
+    assert.equal(attachDiscarded.body.error, 'transcription_session_discarded');
     const afterDiscard = await invoke(server, user.token, 'manageTranscriptionSession', {
       action: 'recover', org_id: org.id,
     });
@@ -152,6 +168,7 @@ test('persistent recorder is mounted above navigation and retains the legacy SOA
   const layout = fs.readFileSync(new URL('../../src/Layout.jsx', import.meta.url), 'utf8');
   const provider = fs.readFileSync(new URL('../../src/lib/transcription/PersistentTranscriptionContext.jsx', import.meta.url), 'utf8');
   const dock = fs.readFileSync(new URL('../../src/components/transcription/PersistentTranscriptionDock.jsx', import.meta.url), 'utf8');
+  const functionSource = fs.readFileSync(new URL('../functions/transcribeSession.mjs', import.meta.url), 'utf8');
   const soap = fs.readFileSync(new URL('../../src/components/calendar/SOAPNoteModal.jsx', import.meta.url), 'utf8');
 
   assert.match(app, /<PersistentTranscriptionProvider>[\s\S]*<Router>/);
@@ -160,9 +177,33 @@ test('persistent recorder is mounted above navigation and retains the legacy SOA
   assert.match(provider, /PART_DURATION_MS = 4 \* 60 \* 1000/);
   assert.match(provider, /saveLocalTranscriptionChunk/);
   assert.match(provider, /transcribe_segment/);
+  assert.match(provider, /MIN_RECORDING_STORAGE_BYTES = 64 \* 1024 \* 1024/);
+  assert.match(provider, /window\.addEventListener\('online', retryWhenOnline\)/);
+  assert.match(provider, /window\.addEventListener\('pagehide', checkpointBufferedAudio\)/);
+  assert.match(provider, /retryInFlightRef\.current/);
+  assert.match(provider, /requestPersistence = !storagePersistenceRequestedRef\.current/);
+  assert.match(provider, /preparedStream = await prepareCaptureStream\(\)[\s\S]*action: 'create'/,
+    'storage and microphone preflight must precede durable session creation');
+  assert.match(provider, /await beginCapture\(preparedStream\);[\s\S]*openDock\(\)/,
+    'a successful start must reveal the persistent dock');
+  assert.match(provider, /action: 'discard'[\s\S]*deleteLocalTranscriptionSession\(createdSession\.id\)/,
+    'post-create capture failure must clean up the server and local session');
+  assert.match(provider, /phase: recorderRef\.current\?\.state === 'recording' \? 'recording' : 'recoverable'/);
   assert.match(dock, /const open = expanded;/, 'an active recording remains collapsible while capture continues');
   assert.match(dock, /z-40 h-12 w-12/, 'the collapsed mobile control stays compact and behind modal controls');
   assert.match(dock, /aria-label="Collapse transcription"/, 'active sessions retain an accessible collapse control');
+  assert.match(functionSource, /patient_facing_summary/);
+  assert.match(functionSource, /referrer_update/);
+  assert.match(functionSource, /home_program_actions/);
+  assert.match(functionSource, /unresolved_clinical_questions/);
+  assert.match(functionSource, /session\.status === 'ready' && session\.artifacts/);
+  assert.match(functionSource, /replayed: true/);
+  assert.match(dock, /Patient summary/);
+  assert.match(dock, /Referrer update/);
+  assert.match(dock, /Home programme/);
   assert.match(soap, /usePersistentTranscription/);
+  assert.match(soap, /Start persistent transcription/);
+  assert.match(soap, /await persistentTranscription\.start\(\{/);
+  assert.match(soap, /recordingConsentMode === 'persistent'/);
   assert.match(soap, /const \[isRecording, setIsRecording\] = useState\(false\)/, 'legacy note recorder remains available');
 });
