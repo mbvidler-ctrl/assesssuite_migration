@@ -466,6 +466,9 @@ jobs:
 
       - name: Existing seeded launch-gate suite
         shell: bash
+        env:
+          # Synthetic-only credential shared by seed.mjs and gate-tests.mjs.
+          SEED_PASSWORD: "SeedDemo!2026"
         run: |
           set -euo pipefail
           node server/seed.mjs
