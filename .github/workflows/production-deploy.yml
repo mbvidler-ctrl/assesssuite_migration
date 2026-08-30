@@ -138,7 +138,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 2bfe409b7640b8ae6fba889499e433c4d0ff8469646445accf2f990b73197a36
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 7e7e8c1ec2768335c72a1652a959cc84daeee3e265c7b1a09aa5fd6f9e24e7a9
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -1388,16 +1388,16 @@ jobs:
             local status
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-register-invalid.json" -w '%{http_code}' \
               -H 'Content-Type: application/json' -X POST \
-              --data '{}' "$url/api/apps/prod/auth/register")" || return 1
+              --data '{}' "$url/api/apps/local-assesssuite/auth/register")" || return 1
             if [[ "$status" != '400' ]]; then echo "Public surface ${label}: invalid registration returned ${status}, expected 400." >&2; fi
             [[ "$status" == '400' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-upload.json" -w '%{http_code}' \
-              -X POST "$url/api/apps/prod/integration-endpoints/Core/UploadFile")" || return 1
+              -X POST "$url/api/apps/local-assesssuite/integration-endpoints/Core/UploadFile")" || return 1
             if [[ "$status" != '401' ]]; then echo "Public surface ${label}: anonymous upload returned ${status}, expected 401." >&2; fi
             [[ "$status" == '401' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-extraction.json" -w '%{http_code}' \
               -H 'Content-Type: application/json' -X POST --data '{}' \
-              "$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile")" || return 1
+              "$url/api/apps/local-assesssuite/integration-endpoints/Core/ExtractDataFromUploadedFile")" || return 1
             if [[ "$status" != '401' ]]; then echo "Public surface ${label}: anonymous extraction returned ${status}, expected 401." >&2; fi
             [[ "$status" == '401' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-file.json" -w '%{http_code}' \
