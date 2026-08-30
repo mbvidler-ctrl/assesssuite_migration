@@ -2364,6 +2364,12 @@ function validateDeployWorkflowV2(input) {
   requireText("read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", 'pre-mutation application-host version freeze');
   requireText("read_version 'https://assesssuite-production.fly.dev' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-fly-version.json\"", 'pre-mutation Fly-domain version freeze');
   requireText('public-settings/by-id/local-assesssuite', 'exact admitted EP public-settings identity');
+  for (const needle of [
+    '.public_settings.transcription_enabled == true',
+    '.public_settings.capabilities.general_clinical_llm.available == true',
+    '.public_settings.capabilities.transcription.available == true',
+    '.public_settings.capabilities.document_extraction.available == true',
+  ]) requireText(needle, 'candidate published capability ' + needle);
   requireText('"Starting extraction confirms that"', 'compiled referral-attestation prefix marker');
   requireText('"for AssessSuite and OpenAI to process this referral. No patient record changes until you review and confirm the extracted data."', 'compiled referral no-write marker');
   requireText("'Exercise Physiology at its Clinical Best.'", 'postrollback pre-split landing marker');
@@ -2378,8 +2384,15 @@ function validateDeployWorkflowV2(input) {
     ? finalFlyStep.slice(publicSurfaceStart, publicSurfaceEnd)
     : '';
   for (const needle of [
+    'for attempt in 1 2 3; do',
+    'read_public_surface_once "$url" "${label}-attempt-${attempt}" "$surface_mode" "$attempt"',
+    '"$url/?release_probe=${APPLICATION_SHA}-${label}-${attempt}"',
     "!/^\\/assets\\/[A-Za-z0-9._-]+\\.js$/.test(match[1])",
     'if [[ "$surface_mode" == \'candidate\' ]]; then',
+    'expected_asset_path="/$(jq -er',
+    '[[ "$asset_path" != "$expected_asset_path" ]]',
+    'sha256sum "$bundle"',
+    '[[ "$(wc -c <"$bundle")" -ne "$expected_asset_bytes" ]]',
     '"$url${asset_path}.map"',
     '"$url/assets%2F..%2Findex.html"',
     '--path-as-is --silent --show-error --max-time 10 --max-filesize 65536',
@@ -2389,7 +2402,7 @@ function validateDeployWorkflowV2(input) {
     '[[ "$(<"$traversal_body")" == \'{"message":"not found"}\' ]] || return 1',
   ]) if (!publicSurface.includes(needle)) fail('candidate source-map/traversal canary lacks ' + needle);
   const candidateCanaryGuard = publicSurface.indexOf('if [[ "$surface_mode" == \'candidate\' ]]; then');
-  const candidateCanaryEnd = candidateCanaryGuard < 0 ? -1 : publicSurface.indexOf('            fi', candidateCanaryGuard);
+  const candidateCanaryEnd = candidateCanaryGuard < 0 ? -1 : publicSurface.indexOf('\n            HTML_PATH=', candidateCanaryGuard);
   for (const needle of ['"$url${asset_path}.map"', '"$url/assets%2F..%2Findex.html"']) {
     const offset = publicSurface.indexOf(needle);
     if (offset < candidateCanaryGuard || candidateCanaryEnd <= offset) {
@@ -3459,6 +3472,10 @@ function deployMutationCasesV2(source) {
   replace('manifest-expected-current-rollback-image-bypass', "          same(manifest.rollback_image_ref, e.EXPECTED_CURRENT_IMAGE, 'Manifest expected current image ref');", '          true;');
   replace('pre-mutation-app-version-rebound-to-candidate', "read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", "read_version 'https://app.assesssuite.com' \"$APPLICATION_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"");
   replace('public-settings-app-id-substituted', 'public-settings/by-id/local-assesssuite', 'public-settings/by-id/release-verification');
+  replace('candidate-public-transcription-bypassed', '.public_settings.transcription_enabled == true and', 'true and');
+  replace('candidate-public-general-ai-bypassed', '.public_settings.capabilities.general_clinical_llm.available == true and', 'true and');
+  replace('candidate-public-transcription-posture-bypassed', '.public_settings.capabilities.transcription.available == true and', 'true and');
+  replace('candidate-public-extraction-bypassed', '.public_settings.capabilities.document_extraction.available == true', 'true');
   replace('candidate-referral-attestation-marker-substituted', '"Starting extraction confirms that"', '"Starting extraction confirms that the patient is 13 or older"');
   replace('postrollback-old-landing-marker-removed', "              'Exercise Physiology at its Clinical Best.',", "              'unrelated marker',");
   replace('postrollback-stable-legal-marker-removed', "              'Terms & Conditions',", "              'unrelated legal marker',");
@@ -3469,6 +3486,11 @@ function deployMutationCasesV2(source) {
     "if (!match || !/^\\/assets\\/[A-Za-z0-9._-]+\\.js$/.test(match[1])) {",
     "if (!match || !match[1].startsWith('/assets/')) {",
   );
+  replace('candidate-public-surface-retries-removed', 'for attempt in 1 2 3; do', 'for attempt in 1; do');
+  replace('candidate-release-probe-removed', '"$url/?release_probe=${APPLICATION_SHA}-${label}-${attempt}"', '"$url/"');
+  replace('candidate-sealed-entry-path-bypassed', 'if [[ "$asset_path" != "$expected_asset_path" ]]; then', 'if false; then');
+  replace('candidate-sealed-entry-digest-bypassed', 'if [[ "$(sha256sum "$bundle" | awk \'{print $1}\')" != "$expected_asset_sha256" ]]; then', 'if false; then');
+  replace('candidate-sealed-entry-size-bypassed', 'if [[ "$(wc -c <"$bundle")" -ne "$expected_asset_bytes" ]]; then', 'if false; then');
   replace('candidate-map-target-fabricated', '"$url${asset_path}.map"', '"$url/assets/fabricated.js.map"');
   replace('candidate-map-status-bypassed', '[[ "$map_status" == \'404\' ]] || return 1', 'true # map status bypassed');
   replace('candidate-map-body-bypassed', '[[ "$(<"$map_body")" == \'{"message":"not found"}\' ]] || return 1', 'true # map body bypassed');
