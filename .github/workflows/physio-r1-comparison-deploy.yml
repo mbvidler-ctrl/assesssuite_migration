@@ -296,12 +296,14 @@ jobs:
             jq -e '(.Machines | length) == 0' <<<"$status" >/dev/null
           else
             jq -e --arg machine "$attached_machine" --arg target_sha "$R1_COMPARISON_SHA" \
-              --arg upgrade_sha "$R1_PRE_SHARED_SHA" --arg volume "$R1_VOLUME_ID" '
+              --arg upgrade_sha "$R1_PRE_SHARED_SHA" \
+              --arg live_pre_ai_sha "$R1_PRE_AI_ENABLE_SHA" --arg volume "$R1_VOLUME_ID" '
               (.Machines | length) == 1 and
               .Machines[0].id == $machine and
               .Machines[0].state == "started" and
               (
                 .Machines[0].image_ref.labels.ASSESSSUITE_SOURCE_SHA == $upgrade_sha or
+                .Machines[0].image_ref.labels.ASSESSSUITE_SOURCE_SHA == $live_pre_ai_sha or
                 .Machines[0].image_ref.labels.ASSESSSUITE_SOURCE_SHA == $target_sha
               ) and
               .Machines[0].config.mounts[0].volume == $volume
