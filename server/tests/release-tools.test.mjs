@@ -369,14 +369,22 @@ function assertTwoPhaseImmutableDigestBinding(preparationSource, deploySource) {
   const publishEnd = preparationSource.indexOf('\n      - name:', publishStart + 1);
   assert.notEqual(publishStart, -1);
   const publishStep = preparationSource.slice(publishStart, publishEnd === -1 ? undefined : publishEnd);
-  assert.match(publishStep, /push_output="\$\(timeout[\s\S]*?docker push "\$new_image_tag" 2>&1\)"/);
   assert.match(
     publishStep,
-    /candidate_registry_digest="\$\(printf '%s\\n' "\$push_output"[\s\S]*?digest: \(sha256:\[0-9a-f\]\{64\}\)/,
+    /candidate_registry_digest="\$\("\$regctl" image digest "\$local_ref"\)"/,
   );
+  assert.match(
+    publishStep,
+    /timeout --signal=TERM --kill-after=30s 600s "\$regctl" image copy --force-recursive "\$local_ref" "\$new_image_tag"/,
+  );
+  assert.match(
+    publishStep,
+    /remote_digest="\$\(timeout --signal=TERM --kill-after=10s 60s "\$regctl" image digest "\$new_image_tag"\)"[\s\S]*?\[\[ "\$remote_digest" == "\$candidate_registry_digest" \]\]/,
+  );
+  assert.match(publishStep, /cmp --silent "\$local_blob" "\$remote_blob"/);
   assert.match(publishStep, /candidate_image_ref="registry\.fly\.io\/\$app@\$candidate_registry_digest"/);
-  assert.equal((publishStep.match(/docker push "\$new_image_tag"/g) || []).length, 1);
-  assert.doesNotMatch(publishStep, /\bfly deploy\b/);
+  assert.equal((publishStep.match(/"\$regctl" image copy --force-recursive/g) || []).length, 1);
+  assert.doesNotMatch(publishStep, /docker push|\bfly deploy\b/);
 
   const releaseMarker = deploySource.indexOf('      - name: Final secret-bearing Fly release command and public verification');
   assert.notEqual(releaseMarker, -1);

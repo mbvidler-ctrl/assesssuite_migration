@@ -3148,19 +3148,31 @@ function validatePrepareReleaseWorkflow(input) {
     'timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin',
     "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120",
   ]) requireText(needle, 'bounded prepare-release remote operation ' + needle);
-  const prepareReleaseFlyctlDownload =
+  const prepareReleaseRegctlDownload =
     "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
-    '            --output "$archive" \\\n' +
-    "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'";
+    '            --output "$binary" \\\n' +
+    "            'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'";
   if (countOf(active, 'git ls-remote') !== 2 ||
       countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH"') !== 1 ||
       countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main') !== 1 ||
       countOf(active, 'git fetch') !== 1 ||
       countOf(active, 'timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin') !== 1 ||
-      countOf(active, 'docker pull') !== 1 ||
-      countOf(active, 'timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE"') !== 1 ||
-      countOf(active, 'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz') !== 1 ||
-      countOf(active, prepareReleaseFlyctlDownload) !== 1) {
+      countOf(active, 'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64') !== 1 ||
+      countOf(active, prepareReleaseRegctlDownload) !== 1 ||
+      countOf(active, '"$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=10s 60s \\\n            "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin') !== 1 ||
+      countOf(active, '"$regctl" image copy --force-recursive "$local_ref" "$new_image_tag"') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=30s 600s "$regctl" image copy --force-recursive "$local_ref" "$new_image_tag"') !== 1 ||
+      countOf(active, '"$regctl" image digest "$new_image_tag"') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=10s 60s "$regctl" image digest "$new_image_tag"') !== 1 ||
+      countOf(active, '"$regctl" blob get "$registry_repo" "$digest"') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=30s 600s "$regctl" blob get "$registry_repo" "$digest"') !== 1 ||
+      countOf(active, '"$regctl" manifest get "$ROLLBACK_IMAGE" --format raw-body') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=10s 60s "$regctl" manifest get "$ROLLBACK_IMAGE" --format raw-body') !== 1 ||
+      countOf(active, '"$regctl" blob get "$registry_repo" "$rollback_image_id"') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=30s 300s "$regctl" blob get "$registry_repo" "$rollback_image_id"') !== 1 ||
+      countOf(active, '"$regctl" image export "$ROLLBACK_IMAGE"') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=30s 600s "$regctl" image export "$ROLLBACK_IMAGE"') !== 1) {
     fail('prepare-release remote operations are not exclusively bound to their reviewed bounded commands');
   }
   for (const needle of [
@@ -3183,7 +3195,7 @@ function validatePrepareReleaseWorkflow(input) {
     'Secret and high-entropy diff scan','Build exact candidate image locally without credentials',
     'Preserve the exact gated candidate image','Preserve sealed release controls',
   ];
-  const expectedPublishSteps = ['Download exact gated candidate by immutable artifact ID','Validate and load candidate image as data only','Install checksum-verified flyctl 0.4.71 for registry authentication only','Acquire isolated registry credential','Publish immutable image and seal compatibility bundle','Upload sealed publication receipt and rollback image data'];
+  const expectedPublishSteps = ['Download exact gated candidate by immutable artifact ID','Validate and load candidate image as data only','Install checksum-verified regctl 0.11.5 without credentials','Acquire isolated registry credential','Publish immutable image and seal compatibility bundle','Upload sealed publication receipt and rollback image data'];
   const expectedSentrySteps = ['Download exact gated source-map data by immutable artifact ID','Validate and extract sealed source-map data without executing candidate code','Install checksum-verified sentry-cli 3.6.2 without credentials','Upload exact release source maps with the isolated Sentry credential'];
   const expectedCompatibilitySteps = ['Check out exact candidate into the no-secret proof runner','Download exact candidate image by immutable artifact ID','Download exact publication bundle by immutable artifact ID','Set up Node.js 24 for isolated compatibility proof','Verify immutable handoff and run exact-image compatibility proof','Upload bounded compatibility proof receipt','Seal bounded deploy bundle from exact regular files','Upload bounded deploy bundle','Emit immutable publication summary'];
   if (JSON.stringify(stepsIn(gates)) !== JSON.stringify(expectedGateSteps)) fail('prepare-release gate steps differ');
@@ -3235,13 +3247,27 @@ function validatePrepareReleaseWorkflow(input) {
       /(^|\n)\s*docker\s+(?:build|run|create|start|exec)\b/.test(publish) || publish.includes('fly deploy ')) {
     fail('credentialed publication job can execute candidate code or mutate production');
   }
-  if (countOf(publish, 'DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config') !== 2 ||
-      !publish.includes('rm -rf "$DOCKER_CONFIG"') || !publish.includes('[[ ! -e "$DOCKER_CONFIG" ]]') ||
-      publish.includes('DOCKER_CONFIG: ~/.docker')) fail('publication Docker credential isolation differs');
+  if (countOf(publish, 'REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json') !== 2 ||
+      !publish.includes('rm -f "$REGCTL_CONFIG"') || !publish.includes('[[ ! -e "$REGCTL_CONFIG" ]]') ||
+      publish.includes('REGCTL_CONFIG: ~/.regctl')) fail('publication registry credential isolation differs');
   const authOffset = publish.indexOf('FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}');
   const pushOffset = publish.indexOf('Publish immutable image and seal compatibility bundle');
   const credentialInputMarker = 'FLY_API_' + 'TOKEN:';
   if (authOffset < 0 || pushOffset < 0 || authOffset > pushOffset || publish.slice(pushOffset).includes(credentialInputMarker)) fail('Fly token leaks into publication processing');
+  for (const needle of [
+    "'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467'",
+    "tarfile.open(archive_path, mode='r:gz')",
+    'not (member.isdir() or member.isfile())',
+    "destination.open('xb')",
+    "row.mediaType !== 'application/vnd.oci.image.manifest.v1+json'",
+    'row.config?.digest !== process.env.CANDIDATE_IMAGE_ID',
+    '"$regctl" image copy --force-recursive "$local_ref" "$new_image_tag"',
+    '[[ "$remote_digest" == "$candidate_registry_digest" ]]',
+    'cmp --silent "$local_blob" "$remote_blob"',
+    'trap cleanup_registry_auth EXIT',
+    '"$regctl" registry logout registry.fly.io >/dev/null 2>&1 || true',
+    '--name "assesssuite-rollback:$ROLLBACK_SOURCE_SHA"',
+  ]) if (!publish.includes(needle)) fail('prepare-release canonical OCI publication boundary missing ' + needle);
 
   for (const needle of [
     'artifact-ids: ${{ needs.gates.outputs.candidate_image_artifact_id }}',
@@ -4168,11 +4194,17 @@ function prepareReleaseMutationCases(source) {
   replace('sentry-source-map-archive-broadened', "expected_files=$'candidate-build-receipt.json\\ncandidate-image.tar.gz\\ncandidate-image.tar.gz.sha256\\nsentry-source-map-manifest.json\\nsentry-source-maps.tar.gz'", "expected_files=$'candidate-build-receipt.json\\ncandidate-image.tar.gz\\ncandidate-image.tar.gz.sha256\\nsentry-source-map-manifest.json\\nsentry-source-maps.tar.gz\\nunsafe.sh'");
   replace('sentry-dsn-host-mutated', "parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io'", "parsed.hostname !== 'example.invalid'");
   replace('sentry-dsn-project-mutated', "parsed.pathname !== '/4511827129663488'", "parsed.pathname !== '/0'");
-  replace('publish-npm-injected', '          docker tag "$local_image" "$new_image_tag"', '          npm ci\n          docker tag "$local_image" "$new_image_tag"');
-  replace('publish-docker-run-injected', '          docker tag "$local_image" "$new_image_tag"', '          docker run "$local_image"\n          docker tag "$local_image" "$new_image_tag"');
-  replace('publish-fly-deploy-injected', '          docker tag "$local_image" "$new_image_tag"', '          fly deploy .\n          docker tag "$local_image" "$new_image_tag"');
-  replace('publication-default-docker-config', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          DOCKER_CONFIG: ~/.docker');
-  replace('publication-auth-cleanup-removed', '          rm -rf "$DOCKER_CONFIG"', '          true');
+  replace('publish-npm-injected', '          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"', '          npm ci\n          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"');
+  replace('publish-docker-run-injected', '          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"', '          docker run "$local_image"\n          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"');
+  replace('publish-fly-deploy-injected', '          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"', '          fly deploy .\n          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"');
+  replace('publication-default-regctl-config', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          REGCTL_CONFIG: ~/.regctl/config.json');
+  replace('publication-auth-cleanup-removed', '            rm -f "$REGCTL_CONFIG"', '            true');
+  replace('publication-regctl-checksum-mutated', "'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467'", "'093aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467'");
+  replace('publication-archive-member-type-bypassed', 'not (member.isdir() or member.isfile())', 'False');
+  replace('publication-config-identity-bypassed', 'row.config?.digest !== process.env.CANDIDATE_IMAGE_ID', 'false');
+  replace('publication-remote-digest-bypassed', '          [[ "$remote_digest" == "$candidate_registry_digest" ]]', '          true');
+  replace('publication-blob-byte-compare-bypassed', '            cmp --silent "$local_blob" "$remote_blob"', '            true');
+  replace('publication-cleanup-trap-removed', '          trap cleanup_registry_auth EXIT', '          true');
   replace('compatibility-secret-injected', '        working-directory: candidate\n        env:\n          APPLICATION_SHA:', '        working-directory: candidate\n        env:\n          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          APPLICATION_SHA:');
   replace('compatibility-marker-weakened', '[[ "$(grep -Fxc "# $marker=PASS" "$proof_log")" -eq 1 ]]', '[[ "$(grep -Fxc "# $marker=PASS" "$proof_log")" -ge 1 ]]');
   replace('bundle-file-set-bypass', '          [[ "$actual_files" == "$expected_files" ]]\n          deploy_bundle_manifest_sha256=', '          true\n          deploy_bundle_manifest_sha256=');
@@ -4228,13 +4260,13 @@ function prepareReleaseMutationCases(source) {
     'git fetch --no-tags --force origin',
   );
   replace(
-    'prepare-release-flyctl-download-timeout-removed',
+    'prepare-release-regctl-download-timeout-removed',
     "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
-      '            --output "$archive" \\\n' +
-      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+      '            --output "$binary" \\\n' +
+      "            'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'",
     "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \\\n" +
-      '            --output "$archive" \\\n' +
-      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+      '            --output "$binary" \\\n' +
+      "            'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'",
   );
   replace(
     'prepare-release-source-remote-bounded-dummy-unbounded-real',
@@ -4261,26 +4293,28 @@ function prepareReleaseMutationCases(source) {
       '          git fetch --no-tags --force origin "refs/heads/main:refs/remotes/origin/main"',
   );
   replace(
-    'prepare-release-flyctl-bounded-dummy-unbounded-real',
+    'prepare-release-regctl-bounded-dummy-unbounded-real',
     "          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
-      '            --output "$archive" \\\n' +
-      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+      '            --output "$binary" \\\n' +
+      "            'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'",
     '          if false; then\n' +
       "            curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
-      '              --output "$archive" \\\n' +
-      "              'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'\n" +
+      '              --output "$binary" \\\n' +
+      "              'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'\n" +
       '          fi\n' +
       "          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \\\n" +
-      '            --output "$archive" \\\n' +
-      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+      '            --output "$binary" \\\n' +
+      "            'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'",
   );
   replace(
-    'prepare-release-rollback-image-bounded-dummy-unbounded-real',
-    '          timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE" >/dev/null',
+    'prepare-release-rollback-image-export-bounded-dummy-unbounded-real',
+    '          timeout --signal=TERM --kill-after=30s 600s "$regctl" image export "$ROLLBACK_IMAGE" \\\n            "$RUNNER_TEMP/publication/rollback-image.tar" --name "assesssuite-rollback:$ROLLBACK_SOURCE_SHA"',
     '          if false; then\n' +
-      '            timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE" >/dev/null\n' +
+      '            timeout --signal=TERM --kill-after=30s 600s "$regctl" image export "$ROLLBACK_IMAGE" \\\n' +
+      '              "$RUNNER_TEMP/publication/rollback-image.tar" --name "assesssuite-rollback:$ROLLBACK_SOURCE_SHA"\n' +
       '          fi\n' +
-      '          docker pull "$ROLLBACK_IMAGE" >/dev/null',
+      '          "$regctl" image export "$ROLLBACK_IMAGE" \\\n' +
+      '            "$RUNNER_TEMP/publication/rollback-image.tar" --name "assesssuite-rollback:$ROLLBACK_SOURCE_SHA"',
   );
   replace(
     'prepare-release-topology-config-source-reverted',
