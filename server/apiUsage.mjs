@@ -36,6 +36,13 @@ export const OPENAI_PRICE_REGISTRY = Object.freeze({
   }),
 });
 
+const APPROVED_PRICE_KINDS_BY_FEATURE = Object.freeze({
+  invoke_llm: Object.freeze(['chat']),
+  transcription: Object.freeze(['audio', 'audio_tokens']),
+  soap_dissection: Object.freeze(['chat']),
+  document_extraction: Object.freeze(['chat']),
+});
+
 const DEFAULTS = Object.freeze({
   userRolling24hMicrousd: 5 * MICROUSD_PER_USD,
   // This is the hard API-use ceiling. Dollar admission uses conservative
@@ -158,14 +165,17 @@ function positiveInteger(value, label) {
   return value;
 }
 
-function modelPrice(model, expectedKind, environment = process.env) {
+function modelPrice(model, expectedKinds, environment = process.env) {
   const selected = assertIdentifier(model, 'model');
   const price = OPENAI_PRICE_REGISTRY[selected] || (
     environment.SELFTEST === '1' && /^synthetic-[a-z0-9_-]+$/i.test(selected)
       ? OPENAI_PRICE_REGISTRY['gpt-4.1-mini-2025-04-14']
       : null
   );
-  if (!price || (expectedKind && price.kind !== expectedKind)) {
+  const approvedKinds = Array.isArray(expectedKinds)
+    ? expectedKinds
+    : (expectedKinds ? [expectedKinds] : []);
+  if (!price || (approvedKinds.length > 0 && !approvedKinds.includes(price.kind))) {
     throw new ApiUsageError(
       503,
       'ai_usage_model_unpriced',
@@ -331,7 +341,7 @@ export function createApiUsageService(
     if (safeProvider !== 'openai' || !API_USAGE_FEATURES.includes(safeFeature)) {
       throw accountingUnavailable(new Error('provider or feature is invalid'));
     }
-    modelPrice(safeModel, safeFeature === 'transcription' ? 'audio' : 'chat', environment);
+    modelPrice(safeModel, APPROVED_PRICE_KINDS_BY_FEATURE[safeFeature], environment);
     const safeEstimate = nonNegativeInteger(estimatedCostMicrousd, 'estimatedCostMicrousd');
     const safeRequestUnits = positiveInteger(requestUnits, 'requestUnits');
     const now = new Date(clock());

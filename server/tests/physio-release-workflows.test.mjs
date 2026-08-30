@@ -1408,7 +1408,8 @@ test('R1 comparison deployment is immutable, snapshot-isolated, fully tested and
   assert.match(source, /R1_SHARED_FEATURE_SHA: a8c235662197d0ec92f476c0037aef3046701496/);
   assert.match(source, /R1_SHARED_QUOTA_SHA: e7de6d04cf42087971f414245604ed338d3722f7/);
   assert.match(source, /R1_SHARED_AI_SHA: e2923aec672406dbb63299ddd769759bf3e4f06a/);
-  assert.match(source, /R1_COMPARISON_SHA: 71f3ca5ec2a0d3a35e8d908a80407fe6e6e3ca0b/);
+  assert.match(source, /R1_PRE_AI_ENABLE_SHA: 71f3ca5ec2a0d3a35e8d908a80407fe6e6e3ca0b/);
+  assert.match(source, /R1_COMPARISON_SHA: 3a3491e79c5de3916ff1d85b162028fadbf678ed/);
   assert.match(source, /R1_SNAPSHOT_ID: vs_lmk35KXxYQuw0gnzvz/);
   assert.match(source, /R1_SNAPSHOT_DIGEST: bc800957c63e2da2a03da240f60bba1810d3d6a31175fd0ff0aef0568cbc946d/);
   assert.match(source, /R1_VOLUME_ID: vol_vgn67klw1jq1km04/);

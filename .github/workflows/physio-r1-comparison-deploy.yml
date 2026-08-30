@@ -36,7 +36,8 @@ jobs:
       R1_SHARED_FEATURE_SHA: a8c235662197d0ec92f476c0037aef3046701496
       R1_SHARED_QUOTA_SHA: e7de6d04cf42087971f414245604ed338d3722f7
       R1_SHARED_AI_SHA: e2923aec672406dbb63299ddd769759bf3e4f06a
-      R1_COMPARISON_SHA: 71f3ca5ec2a0d3a35e8d908a80407fe6e6e3ca0b
+      R1_PRE_AI_ENABLE_SHA: 71f3ca5ec2a0d3a35e8d908a80407fe6e6e3ca0b
+      R1_COMPARISON_SHA: 3a3491e79c5de3916ff1d85b162028fadbf678ed
       R1_SNAPSHOT_ID: vs_lmk35KXxYQuw0gnzvz
       R1_SNAPSHOT_DIGEST: bc800957c63e2da2a03da240f60bba1810d3d6a31175fd0ff0aef0568cbc946d
       R1_VOLUME_ID: vol_vgn67klw1jq1km04
@@ -74,6 +75,7 @@ jobs:
           [[ "$R1_SHARED_FEATURE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_SHARED_QUOTA_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_SHARED_AI_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_PRE_AI_ENABLE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_COMPARISON_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_SNAPSHOT_ID" =~ ^vs_[A-Za-z0-9]+$ ]]
           [[ "$R1_SNAPSHOT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
@@ -107,6 +109,7 @@ jobs:
           $R1_SHARED_FEATURE_SHA
           $R1_SHARED_QUOTA_SHA
           $R1_SHARED_AI_SHA
+          $R1_PRE_AI_ENABLE_SHA
           $R1_COMPARISON_SHA
           COMMITS
           diff -u "$expected_chain" "$actual_chain"
@@ -458,6 +461,7 @@ jobs:
             --arg shared_feature_sha "$R1_SHARED_FEATURE_SHA" \
             --arg shared_quota_sha "$R1_SHARED_QUOTA_SHA" \
             --arg shared_ai_sha "$R1_SHARED_AI_SHA" \
+            --arg pre_ai_enable_sha "$R1_PRE_AI_ENABLE_SHA" \
             --arg snapshot_id "$R1_SNAPSHOT_ID" \
             --arg snapshot_digest "$R1_SNAPSHOT_DIGEST" \
             --arg volume_id "$R1_VOLUME_ID" \
@@ -465,7 +469,7 @@ jobs:
             --argjson catalogue_count "$R1_CATALOGUE_COUNT" \
             --arg catalogue_checksum "$R1_CATALOGUE_CHECKSUM" \
             '{
-              contract_version: "assesssuite-physio-r1-comparison-deploy/1.2.0",
+              contract_version: "assesssuite-physio-r1-comparison-deploy/1.3.0",
               result: "PASS",
               application: $application,
               application_sha: $application_sha,
@@ -479,6 +483,7 @@ jobs:
               shared_feature_sha: $shared_feature_sha,
               shared_quota_sha: $shared_quota_sha,
               shared_ai_sha: $shared_ai_sha,
+              pre_ai_enable_sha: $pre_ai_enable_sha,
               source_snapshot_id: $snapshot_id,
               source_snapshot_digest: $snapshot_digest,
               isolated_volume_id: $volume_id,
