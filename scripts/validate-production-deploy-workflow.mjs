@@ -2400,6 +2400,9 @@ function validateDeployWorkflowV2(input) {
     '[[ "$(<"$map_body")" == \'{"message":"not found"}\' ]] || return 1',
     '[[ "$traversal_status" == \'404\' ]] || return 1',
     '[[ "$(<"$traversal_body")" == \'{"message":"not found"}\' ]] || return 1',
+    '"$url/api/apps/local-assesssuite/auth/register"',
+    '"$url/api/apps/local-assesssuite/integration-endpoints/Core/UploadFile"',
+    '"$url/api/apps/local-assesssuite/integration-endpoints/Core/ExtractDataFromUploadedFile"',
   ]) if (!publicSurface.includes(needle)) fail('candidate source-map/traversal canary lacks ' + needle);
   const candidateCanaryGuard = publicSurface.indexOf('if [[ "$surface_mode" == \'candidate\' ]]; then');
   const candidateCanaryEnd = candidateCanaryGuard < 0 ? -1 : publicSurface.indexOf('\n            HTML_PATH=', candidateCanaryGuard);
@@ -3491,6 +3494,9 @@ function deployMutationCasesV2(source) {
   replace('candidate-sealed-entry-path-bypassed', 'if [[ "$asset_path" != "$expected_asset_path" ]]; then', 'if false; then');
   replace('candidate-sealed-entry-digest-bypassed', 'if [[ "$(sha256sum "$bundle" | awk \'{print $1}\')" != "$expected_asset_sha256" ]]; then', 'if false; then');
   replace('candidate-sealed-entry-size-bypassed', 'if [[ "$(wc -c <"$bundle")" -ne "$expected_asset_bytes" ]]; then', 'if false; then');
+  replace('candidate-register-app-id-substituted', '"$url/api/apps/local-assesssuite/auth/register"', '"$url/api/apps/prod/auth/register"');
+  replace('candidate-upload-app-id-substituted', '"$url/api/apps/local-assesssuite/integration-endpoints/Core/UploadFile"', '"$url/api/apps/prod/integration-endpoints/Core/UploadFile"');
+  replace('candidate-extraction-app-id-substituted', '"$url/api/apps/local-assesssuite/integration-endpoints/Core/ExtractDataFromUploadedFile"', '"$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile"');
   replace('candidate-map-target-fabricated', '"$url${asset_path}.map"', '"$url/assets/fabricated.js.map"');
   replace('candidate-map-status-bypassed', '[[ "$map_status" == \'404\' ]] || return 1', 'true # map status bypassed');
   replace('candidate-map-body-bypassed', '[[ "$(<"$map_body")" == \'{"message":"not found"}\' ]] || return 1', 'true # map body bypassed');
