@@ -323,7 +323,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 836397764f1d94e80e9a075fbb2790424fcc3ba5c17e11480e408885e7b245d7
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: c3a774ac6a467b446b24590f048c989a6248fae8097e1b5fc636fa19e5022f22
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -1078,35 +1078,85 @@ jobs:
           candidate_image_id="$(docker image inspect "$image" --format '{{.Id}}')"
           [[ "$candidate_image_id" == "$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).candidate_image_id)" candidate-build-receipt.json)" ]]
           [[ "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+          candidate_oci="$RUNNER_TEMP/candidate-oci"
+          install -d -m 0700 "$candidate_oci"
+          ARCHIVE="$RUNNER_TEMP/candidate-image/candidate-image.tar.gz" OCI_ROOT="$candidate_oci" python3 -I - <<'PY'
+          import os
+          import pathlib
+          import shutil
+          import tarfile
 
-      - name: Install checksum-verified flyctl 0.4.71 for registry authentication only
+          archive_path = pathlib.Path(os.environ['ARCHIVE'])
+          root = pathlib.Path(os.environ['OCI_ROOT']).resolve()
+          with tarfile.open(archive_path, mode='r:gz') as archive:
+              members = archive.getmembers()
+              if not members or len(members) > 10_000:
+                  raise SystemExit('Candidate OCI archive member count differs')
+              seen = set()
+              total = 0
+              for member in members:
+                  pure = pathlib.PurePosixPath(member.name)
+                  normalized = pure.as_posix().rstrip('/')
+                  if (not normalized or pure.is_absolute() or '..' in pure.parts or
+                      normalized in seen or not (member.isdir() or member.isfile())):
+                      raise SystemExit('Candidate OCI archive contains an unsafe or duplicate member')
+                  seen.add(normalized)
+                  if member.isfile():
+                      total += member.size
+                      if member.size < 0 or member.size > 8_589_934_592 or total > 8_589_934_592:
+                          raise SystemExit('Candidate OCI archive exceeds the reviewed byte bound')
+              for member in members:
+                  pure = pathlib.PurePosixPath(member.name)
+                  destination = root.joinpath(*pure.parts)
+                  if member.isdir():
+                      destination.mkdir(mode=0o700, parents=True, exist_ok=True)
+                      destination.chmod(0o700)
+                      continue
+                  destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                  source = archive.extractfile(member)
+                  if source is None:
+                      raise SystemExit('Candidate OCI archive member is unreadable')
+                  with destination.open('xb') as output:
+                      shutil.copyfileobj(source, output, length=1024 * 1024)
+                  destination.chmod(0o600)
+          PY
+          [[ -f "$candidate_oci/oci-layout" && ! -L "$candidate_oci/oci-layout" ]]
+          [[ -f "$candidate_oci/index.json" && ! -L "$candidate_oci/index.json" ]]
+          [[ -d "$candidate_oci/blobs/sha256" && ! -L "$candidate_oci/blobs/sha256" ]]
+          if find "$candidate_oci" -type l -print -quit | grep -q .; then exit 1; fi
+
+      - name: Install checksum-verified regctl 0.11.5 without credentials
         shell: bash
         run: |
           set -euo pipefail
-          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          binary="$RUNNER_TEMP/regctl"
           curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
-            --output "$archive" \
-            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
-          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
-          tar -xzf "$archive" -C "$RUNNER_TEMP" flyctl
-          install -m 0755 "$RUNNER_TEMP/flyctl" "$RUNNER_TEMP/fly"
+            --output "$binary" \
+            'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'
+          printf '%s  %s\n' 'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467' "$binary" | sha256sum --check --strict
+          chmod 0755 "$binary"
+          "$binary" version | grep -F 'VCSTag:     v0.11.5'
 
       - name: Acquire isolated registry credential
         shell: bash
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config
+          REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json
         run: |
           set -euo pipefail
           set +x
-          install -d -m 0700 "$DOCKER_CONFIG"
-          timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/fly" auth docker
+          umask 077
+          [[ -n "$FLY_API_TOKEN" && ! -e "$REGCTL_CONFIG" ]]
+          printf '%s' "$FLY_API_TOKEN" | timeout --signal=TERM --kill-after=10s 60s \
+            "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin >/dev/null
+          [[ -f "$REGCTL_CONFIG" && ! -L "$REGCTL_CONFIG" ]]
 
       - name: Publish immutable image and seal compatibility bundle
         id: publish
         shell: bash
         env:
-          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config
+          REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json
           APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
           SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
           BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
@@ -1122,39 +1172,87 @@ jobs:
         run: |
           set -euo pipefail
           set +x
+          umask 077
           app=assesssuite-production
+          regctl="$RUNNER_TEMP/regctl"
+          cleanup_registry_auth() {
+            "$regctl" registry logout registry.fly.io >/dev/null 2>&1 || true
+            rm -f "$REGCTL_CONFIG"
+          }
+          trap cleanup_registry_auth EXIT
+          [[ -x "$regctl" && -f "$REGCTL_CONFIG" && ! -L "$REGCTL_CONFIG" ]]
           local_image="assesssuite-release-gate:$APPLICATION_SHA"
           candidate_image_id="$(docker image inspect "$local_image" --format '{{.Id}}')"
           new_image_tag="registry.fly.io/$app:release-$APPLICATION_SHA"
-          docker tag "$local_image" "$new_image_tag"
-          push_output=''
-          push_succeeded=0
-          for push_attempt in 1 2 3; do
-            if push_output="$(timeout --signal=TERM --kill-after=30s 600s docker push "$new_image_tag" 2>&1)"; then
-              push_succeeded=1
+          registry_repo="registry.fly.io/$app"
+          candidate_oci="$RUNNER_TEMP/candidate-oci"
+          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"
+          candidate_registry_digest="$("$regctl" image digest "$local_ref")"
+          [[ "$candidate_registry_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          local_manifest="$candidate_oci/blobs/sha256/${candidate_registry_digest#sha256:}"
+          [[ -f "$local_manifest" && ! -L "$local_manifest" ]]
+          [[ "sha256:$(sha256sum "$local_manifest" | awk '{print $1}')" == "$candidate_registry_digest" ]]
+          MANIFEST="$local_manifest" CANDIDATE_IMAGE_ID="$candidate_image_id" node --input-type=module <<'NODE' >"$RUNNER_TEMP/candidate-descriptors.tsv"
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.MANIFEST, 'utf8'));
+          if (row.schemaVersion !== 2 || row.mediaType !== 'application/vnd.oci.image.manifest.v1+json' ||
+              row.config?.digest !== process.env.CANDIDATE_IMAGE_ID || !Number.isSafeInteger(row.config?.size) ||
+              row.config.size < 1 || !Array.isArray(row.layers) || row.layers.length < 1 || row.layers.length > 256) {
+            throw new Error('Candidate OCI manifest identity differs');
+          }
+          for (const descriptor of [row.config, ...row.layers]) {
+            if (!/^sha256:[0-9a-f]{64}$/.test(descriptor.digest) || !Number.isSafeInteger(descriptor.size) ||
+                descriptor.size < 1 || descriptor.size > 8_589_934_592 || typeof descriptor.mediaType !== 'string') {
+              throw new Error('Candidate OCI descriptor differs');
+            }
+            console.log(`${descriptor.digest}\t${descriptor.size}`);
+          }
+          NODE
+          copy_succeeded=0
+          for copy_attempt in 1 2 3; do
+            if timeout --signal=TERM --kill-after=30s 600s "$regctl" image copy --force-recursive "$local_ref" "$new_image_tag" \
+              >"$RUNNER_TEMP/registry-copy.stdout" 2>"$RUNNER_TEMP/registry-copy.stderr"; then
+              copy_succeeded=1
               break
             fi
-            unset push_output
-            echo "Candidate image push attempt $push_attempt of 3 failed; registry output withheld." >&2
-            if [[ "$push_attempt" -lt 3 ]]; then
-              sleep "$((push_attempt * 5))"
-              push_output=''
+            echo "Candidate image copy attempt $copy_attempt of 3 failed; registry output withheld." >&2
+            if [[ "$copy_attempt" -lt 3 ]]; then
+              sleep "$((copy_attempt * 5))"
             fi
           done
-          if [[ "$push_succeeded" -ne 1 ]]; then
-            echo 'Candidate image push failed after three bounded attempts; registry output withheld.' >&2
+          rm -f "$RUNNER_TEMP/registry-copy.stdout" "$RUNNER_TEMP/registry-copy.stderr"
+          if [[ "$copy_succeeded" -ne 1 ]]; then
+            echo 'Candidate image copy failed after three bounded attempts; registry output withheld.' >&2
             exit 1
           fi
-          candidate_registry_digest="$(printf '%s\n' "$push_output" | sed -nE 's/^.*digest: (sha256:[0-9a-f]{64}) size: [0-9]+.*$/\1/p' | tail -n 1)"
-          unset push_output
-          [[ "$candidate_registry_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          remote_digest="$(timeout --signal=TERM --kill-after=10s 60s "$regctl" image digest "$new_image_tag")"
+          [[ "$remote_digest" == "$candidate_registry_digest" ]]
+          readback_root="$RUNNER_TEMP/registry-readback"
+          install -d -m 0700 "$readback_root"
+          while IFS=$'\t' read -r digest size; do
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ && "$size" =~ ^[1-9][0-9]*$ ]]
+            local_blob="$candidate_oci/blobs/sha256/${digest#sha256:}"
+            remote_blob="$readback_root/${digest#sha256:}"
+            [[ -f "$local_blob" && ! -L "$local_blob" && "$(wc -c <"$local_blob")" == "$size" ]]
+            [[ "sha256:$(sha256sum "$local_blob" | awk '{print $1}')" == "$digest" ]]
+            timeout --signal=TERM --kill-after=30s 600s "$regctl" blob get "$registry_repo" "$digest" >"$remote_blob"
+            [[ -f "$remote_blob" && ! -L "$remote_blob" && "$(wc -c <"$remote_blob")" == "$size" ]]
+            [[ "sha256:$(sha256sum "$remote_blob" | awk '{print $1}')" == "$digest" ]]
+            cmp --silent "$local_blob" "$remote_blob"
+            rm -f "$remote_blob"
+          done <"$RUNNER_TEMP/candidate-descriptors.tsv"
           candidate_image_ref="registry.fly.io/$app@$candidate_registry_digest"
-          timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE" >/dev/null
-          rollback_image_id="$(docker image inspect "$ROLLBACK_IMAGE" --format '{{.Id}}')"
+          rollback_image_id="$(timeout --signal=TERM --kill-after=10s 60s "$regctl" manifest get "$ROLLBACK_IMAGE" --format raw-body | \
+            node --input-type=module -e "let b='';for await(const c of process.stdin)b+=c;process.stdout.write(JSON.parse(b).config.digest)")"
           [[ "$rollback_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
+          rollback_config="$RUNNER_TEMP/rollback-config.json"
+          timeout --signal=TERM --kill-after=30s 300s "$regctl" blob get "$registry_repo" "$rollback_image_id" >"$rollback_config"
+          [[ "sha256:$(sha256sum "$rollback_config" | awk '{print $1}')" == "$rollback_image_id" ]]
+          [[ "$(CONFIG="$rollback_config" node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.CONFIG,'utf8')).config.Labels['org.opencontainers.image.revision'])")" == "$ROLLBACK_SOURCE_SHA" ]]
           mkdir -p "$RUNNER_TEMP/publication"
-          docker save "$ROLLBACK_IMAGE" | gzip -1 -n >"$RUNNER_TEMP/publication/rollback-image.tar.gz"
+          timeout --signal=TERM --kill-after=30s 600s "$regctl" image export "$ROLLBACK_IMAGE" \
+            "$RUNNER_TEMP/publication/rollback-image.tar" --name "assesssuite-rollback:$ROLLBACK_SOURCE_SHA"
+          gzip -1 -n "$RUNNER_TEMP/publication/rollback-image.tar"
           rollback_archive_sha256="$(sha256sum "$RUNNER_TEMP/publication/rollback-image.tar.gz" | awk '{print $1}')"
           candidate_archive_sha256="$(sha256sum "$RUNNER_TEMP/candidate-image/candidate-image.tar.gz" | awk '{print $1}')"
           PUBLICATION_RECEIPT="$RUNNER_TEMP/publication/publication-receipt.json" \
@@ -1191,9 +1289,9 @@ jobs:
           fs.writeFileSync(process.env.PUBLICATION_RECEIPT, `${JSON.stringify(row)}\n`, { mode: 0o600 });
           NODE
           printf '%s  %s\n' "$rollback_archive_sha256" rollback-image.tar.gz >"$RUNNER_TEMP/publication/rollback-image.tar.gz.sha256"
-          timeout --signal=TERM --kill-after=10s 60s docker logout registry.fly.io >/dev/null
-          rm -rf "$DOCKER_CONFIG"
-          [[ ! -e "$DOCKER_CONFIG" ]]
+          cleanup_registry_auth
+          trap - EXIT
+          [[ ! -e "$REGCTL_CONFIG" ]]
           printf 'candidate_image_ref=%s\n' "$candidate_image_ref" >>"$GITHUB_OUTPUT"
           printf 'candidate_registry_digest=%s\n' "$candidate_registry_digest" >>"$GITHUB_OUTPUT"
 

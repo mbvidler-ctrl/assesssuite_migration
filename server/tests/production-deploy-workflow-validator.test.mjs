@@ -13,7 +13,7 @@ const validator = path.join(repoRoot, 'scripts', 'validate-production-deploy-wor
 
 const GOVERNED_WORKFLOWS = [
   { file: 'production-deploy.yml', mutations: 168, pinsValidator: true },
-  { file: 'production-prepare-release.yml', mutations: 74, pinsValidator: true },
+  { file: 'production-prepare-release.yml', mutations: 80, pinsValidator: true },
   { file: 'production-prepare-rollback-image.yml', mutations: 8, pinsValidator: false },
   { file: 'production-rollback.yml', mutations: 100, pinsValidator: true },
   { file: 'production-parity-assurance.yml', mutations: 87, pinsValidator: true },
@@ -605,11 +605,13 @@ test('V09c candidate publication retries transient registry failures without exp
     prepare.indexOf('- name: Publish immutable image and seal compatibility bundle'),
     prepare.indexOf('- name: Upload sealed publication receipt and rollback image data'),
   );
-  assert.match(publication, /for push_attempt in 1 2 3; do/);
-  assert.match(publication, /sleep "\$\(\(push_attempt \* 5\)\)"/);
-  assert.match(publication, /push_succeeded=1/);
-  assert.match(publication, /Candidate image push failed after three bounded attempts; registry output withheld\./);
-  assert.doesNotMatch(publication, /echo.*\$push_output/);
+  assert.match(publication, /for copy_attempt in 1 2 3; do/);
+  assert.match(publication, /regctl" image copy --force-recursive/);
+  assert.doesNotMatch(publication, /\bdocker push\b/);
+  assert.match(publication, /sleep "\$\(\(copy_attempt \* 5\)\)"/);
+  assert.match(publication, /copy_succeeded=1/);
+  assert.match(publication, /Candidate image copy failed after three bounded attempts; registry output withheld\./);
+  assert.doesNotMatch(publication, /echo.*registry-copy\.stderr/);
 });
 
 test('V10 the release filename preflight allows only root .env.example and scans its content', () => {
