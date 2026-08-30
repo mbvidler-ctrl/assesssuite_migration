@@ -75,7 +75,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_SNAPSHOT_VALIDATOR_SHA256: 47285db5c49f45df8c090d5824da17340cee09724f51e6bc1de162ac5099c49e
+          EXPECTED_SNAPSHOT_VALIDATOR_SHA256: 5a39bf4e81136a467d8e973c74e20feb3317e2759a40af873d8c1908ac7f5e66
         run: |
           set -euo pipefail
           [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
@@ -107,7 +107,7 @@ jobs:
         id: capture
         shell: bash
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
           AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}

@@ -301,7 +301,7 @@ jobs:
       - name: Validate the exact trusted production workflow control
         shell: bash
         env:
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 213dd32bf93595590ac586a9e1f65041242de432a7756094129f5791abc5a712
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 41c3c9f823394ed794bd924fbb9a4502310a71e310ac15f8f8fdb9bad327a922
         run: |
           set -euo pipefail
           cd application
@@ -543,7 +543,7 @@ jobs:
         id: execute
         shell: bash
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}
           ACTION: ${{ inputs.action }}
           WAVE_ID: ${{ inputs.wave_id }}
           APPLICATION_SHA: ${{ inputs.application_sha }}

@@ -162,14 +162,14 @@ function validateWorkflow(rawSource) {
     '"$bin_dir/flyctl" version | grep -F \'0.4.71\'',
   ]) if (!install.includes(marker)) fail(`flyctl installation lacks ${marker}`);
 
-  requireCount('${{ secrets.FLY_API_TOKEN }}', 1, 'Fly secret expression');
+  requireCount('${{ secrets.FLY_EP_DEPLOY_TOKEN }}', 1, 'EP-scoped Fly secret expression');
   requireCount('${{ secrets.', 1, 'all secret expressions');
   const capture = section(
     '      - name: Final secret-bearing read-only Fly production state capture\n',
     '\n      - name: Upload bounded content-free production state receipt',
     'secret-bearing state capture',
   );
-  if (!capture.includes('          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}')) fail('Fly token is absent from the sole secret-bearing step');
+  if (!capture.includes('          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}')) fail('EP-scoped Fly token is absent from the sole secret-bearing step');
   for (const marker of [
     'set -euo pipefail\n          set +x\n          umask 077',
     '[[ -n "$FLY_API_TOKEN" ]]',
@@ -324,7 +324,7 @@ if (selftest) {
       '          trap cleanup EXIT\n\n          [[ "$(git rev-parse --verify \'HEAD^{commit}\')" == "$TRUSTED_WORKFLOW_SHA" ]]\n          true',
     ],
     ['validator-pin-mutated', `EXPECTED_SNAPSHOT_VALIDATOR_SHA256: ${validatorSha256}`, `EXPECTED_SNAPSHOT_VALIDATOR_SHA256: ${'0'.repeat(64)}`],
-    ['secret-duplicated', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SECOND_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n'],
+    ['secret-duplicated', '          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}\n', '          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}\n          SECOND_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}\n'],
     ['xtrace-enabled', '          set +x\n', '          set -x\n'],
     ['fly-mutation-injected', '          read_fly_json initial-releases releases --image\n', '          fly volumes destroy vol_attacker --app "$app" --yes\n          read_fly_json initial-releases releases --image\n'],
     ['initial-image-read-removed', '          read_fly_json initial-image image show\n', ''],

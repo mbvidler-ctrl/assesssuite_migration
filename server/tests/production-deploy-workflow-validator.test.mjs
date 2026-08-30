@@ -81,6 +81,32 @@ test('V05 the obsolete rollback-image preparation lane is an exact fail-closed t
   assert.doesNotMatch(rollbackText, /FLY_API_TOKEN|fly deploy|docker |npm |node |uses:/);
 });
 
+test('V05a every EP Fly operation uses the dedicated app-scoped deploy credential', () => {
+  const operationalWorkflows = [
+    'production-deploy.yml',
+    'production-rollback.yml',
+    'production-parity-assurance.yml',
+    'production-state-snapshot.yml',
+    'emergency-production-deploy.yml',
+  ];
+  for (const file of operationalWorkflows) {
+    const text = fs.readFileSync(workflowPath(file), 'utf8');
+    assert.equal(
+      text.match(/FLY_API_TOKEN: \$\{\{ secrets\.FLY_EP_DEPLOY_TOKEN \}\}/g)?.length,
+      1,
+      `${file} must inject the dedicated EP deploy token exactly once`,
+    );
+    assert.doesNotMatch(
+      text,
+      /FLY_API_TOKEN: \$\{\{ secrets\.FLY_API_TOKEN \}\}/,
+      `${file} must not depend on the shared Physio Fly credential`,
+    );
+  }
+  const preparation = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8');
+  assert.doesNotMatch(preparation, /secrets\.FLY_EP_DEPLOY_TOKEN/);
+  assert.match(preparation, /FLY_API_TOKEN: \$\{\{ secrets\.FLY_EP_REGISTRY_TOKEN \}\}/);
+});
+
 test('V06 every Fly process guard enforces the same semantic TOML contract', () => {
   const python = [
     { command: 'python3', prefix: [] },

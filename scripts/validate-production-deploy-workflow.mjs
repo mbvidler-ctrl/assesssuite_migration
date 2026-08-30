@@ -527,10 +527,10 @@ function validateAuxWorkflow(input, kind) {
   }
   requireStepText('Validate exact trusted release controls', '--selftest', 'trusted workflow mutation selftests');
 
-  requireCount('${{ secrets.FLY_API_TOKEN }}', 1, 'Fly token expression');
+  requireCount('${{ secrets.FLY_EP_DEPLOY_TOKEN }}', 1, 'EP-scoped Fly token expression');
   requireCount('${{ secrets.', 1, 'all GitHub secret expressions');
-  if (!finalActive.includes('FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}')) {
-    fail('Fly token is not confined to the final step');
+  if (!finalActive.includes('FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}')) {
+    fail('EP-scoped Fly token is not confined to the final step');
   }
   if (steps.at(-1)?.name !== finalStepName) fail('secret-bearing step is not the final workflow step');
   requireStepText(finalStepName, 'set -euo pipefail\n          set +x', 'fail-closed non-tracing shell');
@@ -1020,8 +1020,8 @@ function auxMutationCases(source, kind) {
   }
   replace(
     'duplicate-fly-token',
-    '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}',
-    '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SECOND_TOKEN: ${{ secrets.FLY_API_TOKEN }}',
+    '          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}',
+    '          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}\n          SECOND_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}',
   );
   replace(
     'duplicate-topology-function-override',
@@ -1791,7 +1791,7 @@ function validateParityWorkflow(input) {
     fail('parity remote operations are not exclusively bound to their reviewed bounded commands');
   }
 
-  if (prepare.includes('${{ secrets.FLY_API_TOKEN }}')) fail('Fly token enters parity preparation');
+  if (prepare.includes('${{ secrets.FLY_EP_DEPLOY_TOKEN }}')) fail('EP-scoped Fly token enters parity preparation');
   for (const needle of [
     'FROM mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48',
     'RUN npm ci --ignore-scripts', 'ENTRYPOINT ["node", "server/tests/production-parity-wave.mjs"]',
@@ -1801,7 +1801,9 @@ function validateParityWorkflow(input) {
     'parity_runner_artifact_digest: sha256:${{ steps.upload_runner.outputs.artifact-digest }}',
   ]) if (!prepare.includes(needle)) fail('missing frozen parity runner boundary ' + needle);
 
-  if (countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 1) fail('parity Fly token expression differs');
+  if (countOf(active, '${{ secrets.FLY_EP_DEPLOY_TOKEN }}') !== 1 ||
+      countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 0 ||
+      countOf(active, '${{ secrets.') !== 2) fail('parity EP-scoped Fly token expression differs');
   if (effect.includes('actions/checkout@') || /(^|\n)\s*(npm|npx)\s/.test(effect) ||
       /\bnode\s+server\/tests\/production-parity-wave\.mjs\s+run-wave/.test(effect)) {
     fail('credentialed parity effect executes candidate code on the host');
@@ -2286,7 +2288,7 @@ function validateDeployWorkflowV2(input) {
   const actions = [...active.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s*#.*)?$/gm)].map((match) => match[1]);
   if (actions.length !== 1) fail('deploy must use exactly one pinned cross-run download action');
   for (const action of actions) if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[0-9a-f]{40}$/.test(action)) fail('deploy action is not SHA pinned: ' + action);
-  if (countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 1 ||
+  if (countOf(active, '${{ secrets.FLY_EP_DEPLOY_TOKEN }}') !== 1 ||
       countOf(active, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 0 ||
       countOf(active, '${{ secrets.SENTRY_DSN }}') !== 1 ||
       countOf(active, '${{ secrets.ASSESSSUITE_DASHBOARD_METRICS_TOKEN }}') !== 1 ||
@@ -2296,7 +2298,7 @@ function validateDeployWorkflowV2(input) {
     fail('deploy job can execute candidate or repository code');
   }
   const finalFlyStep = deployStep('Final secret-bearing Fly release command and public verification');
-  if (finalFlyStep.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') || countOf(finalFlyStep, '${{ secrets.FLY_API_TOKEN }}') !== 1 || countOf(finalFlyStep, '${{ secrets.SENTRY_DSN }}') !== 1 || countOf(finalFlyStep, '${{ secrets.ASSESSSUITE_DASHBOARD_METRICS_TOKEN }}') !== 1) fail('final Fly step credential boundary differs');
+  if (finalFlyStep.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') || countOf(finalFlyStep, '${{ secrets.FLY_EP_DEPLOY_TOKEN }}') !== 1 || countOf(finalFlyStep, '${{ secrets.SENTRY_DSN }}') !== 1 || countOf(finalFlyStep, '${{ secrets.ASSESSSUITE_DASHBOARD_METRICS_TOKEN }}') !== 1) fail('final Fly step credential boundary differs');
   if (/(^|\n)\s+(?:npm|npx)\s/.test(finalFlyStep) || finalFlyStep.includes('actions/checkout@')) fail('final Fly step can execute repository package code');
   if (/(^|\n)\s+needs:/.test(deploy) || deploy.includes('needs.') || deploy.includes('CANDIDATE_IMAGE_REF: ${{ needs.publish_image')) fail('deploy retains an in-run or cyclic publication dependency');
 
@@ -2396,7 +2398,7 @@ function validateDeployWorkflowV2(input) {
     'predeploy snapshot identity binding',
   );
 
-  const secretOffset = deploy.indexOf('FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}');
+  const secretOffset = deploy.indexOf('FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}');
   const bundleOffset = deploy.indexOf('Validate sealed controls and compatibility receipt before secret injection');
   if (secretOffset < 0 || bundleOffset < 0 || secretOffset < bundleOffset) fail('Fly token is injected before sealed bundle verification');
   for (const needle of [
@@ -3242,7 +3244,7 @@ function validatePrepareReleaseWorkflow(input) {
   const actions = [...active.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s*#.*)?$/gm)].map((match) => match[1]);
   if (actions.length !== 13) fail('prepare-release pinned action count differs');
   for (const action of actions) if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[0-9a-f]{40}$/.test(action)) fail('prepare-release action is not SHA pinned: ' + action);
-  if (countOf(active, '${{ secrets.FLY_EP_REGISTRY_TOKEN }}') !== 1 || active.includes('${{ secrets.FLY_API_TOKEN }}') || countOf(active, '${{ secrets.SENTRY_DSN }}') !== 1 || countOf(active, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 1 || countOf(active, '${{ secrets.') !== 3) fail('prepare-release Sentry and Fly credential expressions differ');
+  if (countOf(active, '${{ secrets.FLY_EP_REGISTRY_TOKEN }}') !== 1 || active.includes('${{ secrets.FLY_API_TOKEN }}') || active.includes('${{ secrets.FLY_EP_DEPLOY_TOKEN }}') || countOf(active, '${{ secrets.SENTRY_DSN }}') !== 1 || countOf(active, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 1 || countOf(active, '${{ secrets.') !== 3) fail('prepare-release Sentry and Fly credential expressions differ');
   if (countOf(gates, '${{ secrets.SENTRY_DSN }}') !== 1 || gates.includes('${{ secrets.FLY_EP_REGISTRY_TOKEN }}') || gates.includes('${{ secrets.FLY_API_TOKEN }}') || gates.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') ||
       countOf(sentryUpload, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 1 || sentryUpload.includes('${{ secrets.FLY_EP_REGISTRY_TOKEN }}') || sentryUpload.includes('${{ secrets.FLY_API_TOKEN }}') || sentryUpload.includes('${{ secrets.SENTRY_DSN }}') ||
       publish.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') || publish.includes('${{ secrets.SENTRY_DSN }}') || compatibility.includes('${{ secrets.') || /(^|\n)\s+FLY_API_TOKEN:\s/.test(compatibility)) fail('prepare-release credential placement differs');
@@ -3402,7 +3404,7 @@ function deployMutationCasesV2(source) {
   replace('extra-job', '\njobs:\n  deploy:\n', '\njobs:\n  unsafe:\n    runs-on: ubuntu-24.04\n  deploy:\n');
   replace('checkout-injected', '    steps:\n      - name: Record the rollback-reserved deployment-job deadline', '    steps:\n      - name: Unauthorized checkout\n        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n      - name: Record the rollback-reserved deployment-job deadline');
   replace('npm-injected', '          app=assesssuite-production\n          release_control_dir="$RUNNER_TEMP/deploy-bundle"', '          npm ci\n          app=assesssuite-production\n          release_control_dir="$RUNNER_TEMP/deploy-bundle"');
-  replace('sentry-auth-token-injected', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}');
+  replace('sentry-auth-token-injected', '          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}\n          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}', '          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}\n          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}');
   replace('dashboard-github-secret-removed', '          ASSESSSUITE_DASHBOARD_METRICS_TOKEN: ${{ secrets.ASSESSSUITE_DASHBOARD_METRICS_TOKEN }}\n', '');
   replace('dashboard-token-length-gate-weakened', 'byteLength < 32 || byteLength > 4096', 'byteLength < 8 || byteLength > 4096');
   replace('deploy-sentry-dsn-host-mutated', "parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io'", "parsed.hostname !== 'example.invalid'");

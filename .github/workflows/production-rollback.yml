@@ -238,7 +238,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 213dd32bf93595590ac586a9e1f65041242de432a7756094129f5791abc5a712
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 41c3c9f823394ed794bd924fbb9a4502310a71e310ac15f8f8fdb9bad327a922
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -281,7 +281,7 @@ jobs:
       - name: Final secret-bearing immutable rollback and verification
         shell: bash
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_EP_DEPLOY_TOKEN }}
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
           EXPECTED_CURRENT_RELEASE: ${{ inputs.expected_current_release }}
