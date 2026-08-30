@@ -3272,6 +3272,8 @@ function validatePrepareReleaseWorkflow(input) {
   for (const needle of [
     "'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2'",
     "'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467'",
+    'fly_version="$("$RUNNER_TEMP/fly" version)"',
+    "grep -E '^[^[:space:]]+[[:space:]]+v0\\.4\\.71[[:space:]]+linux/amd64([[:space:]]|$)'",
     'timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/fly" auth docker',
     "config.auths?.['registry.fly.io']?.auth",
     "username !== 'x' || !credential.startsWith('fm2_')",
