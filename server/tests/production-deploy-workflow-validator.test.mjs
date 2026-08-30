@@ -12,7 +12,7 @@ const repoRoot = path.resolve(testsDir, '..', '..');
 const validator = path.join(repoRoot, 'scripts', 'validate-production-deploy-workflow.mjs');
 
 const GOVERNED_WORKFLOWS = [
-  { file: 'production-deploy.yml', mutations: 168, pinsValidator: true },
+  { file: 'production-deploy.yml', mutations: 171, pinsValidator: true },
   { file: 'production-prepare-release.yml', mutations: 87, pinsValidator: true },
   { file: 'production-prepare-rollback-image.yml', mutations: 8, pinsValidator: false },
   { file: 'production-rollback.yml', mutations: 100, pinsValidator: true },
@@ -537,6 +537,8 @@ test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and ver
   assert.doesNotMatch(prepare, /eae2f229886b8aa2071864767ba61c0d6e4a548d/);
 
   assert.match(deploy, /merge_base_commit\?\.sha !== process\.env\.ROLLBACK_SOURCE_SHA/);
+  assert.match(deploy, /compare\/\$ROLLBACK_SOURCE_SHA\.\.\.\$APPLICATION_SHA\?per_page=1&page=1/);
+  assert.match(deploy, /--max-filesize 2097152/);
   assert.match(deploy, /EXPECTED_LEGACY_VOLUME_ID: \$\{\{ inputs\.expected_legacy_volume_id \}\}/);
   assert.match(deploy, /legacyVolume\.id !== process\.env\.EXPECTED_LEGACY_VOLUME_ID/);
   assert.match(deploy, /same\(manifest\.expected_legacy_volume_id, e\.EXPECTED_LEGACY_VOLUME_ID/);

@@ -138,7 +138,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 9aedbd58b9673683c2f310fd12ec4b719af64920b3dae6a960d3fb6bb20513c3
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 213dd32bf93595590ac586a9e1f65041242de432a7756094129f5791abc5a712
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -237,12 +237,12 @@ jobs:
           rm -f "$run_json"
 
           compare_json="$RUNNER_TEMP/rollback-ancestor-compare.json"
-          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --max-time 60 \
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --max-time 60 --max-filesize 2097152 \
             --header "Authorization: Bearer $GH_TOKEN" \
             --header 'Accept: application/vnd.github+json' \
             --header 'X-GitHub-Api-Version: 2022-11-28' \
-            "https://api.github.com/repos/$REPOSITORY/compare/$ROLLBACK_SOURCE_SHA...$APPLICATION_SHA" >"$compare_json"
-          [[ -s "$compare_json" && "$(wc -c <"$compare_json")" -le 1048576 ]]
+            "https://api.github.com/repos/$REPOSITORY/compare/$ROLLBACK_SOURCE_SHA...$APPLICATION_SHA?per_page=1&page=1" >"$compare_json"
+          [[ -s "$compare_json" && "$(wc -c <"$compare_json")" -le 2097152 ]]
           COMPARE_JSON="$compare_json" env -u GH_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = JSON.parse(fs.readFileSync(process.env.COMPARE_JSON, 'utf8'));

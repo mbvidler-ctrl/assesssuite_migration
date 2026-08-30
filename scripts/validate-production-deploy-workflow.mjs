@@ -2346,6 +2346,10 @@ function validateDeployWorkflowV2(input) {
   if (countOf(deploy, 'ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_source_sha }}') !== 2) fail('rollback release SHA is not derived from the rollback source in both deploy gates');
   requireText('[[ "$ROLLBACK_RELEASE_SHA" == "$ROLLBACK_SOURCE_SHA" ]]', 'rollback release/source identity');
   requireText('[[ "$ROLLBACK_IMAGE" == "$EXPECTED_CURRENT_IMAGE" ]]', 'rollback image/current image identity');
+  requireText('"https://api.github.com/repos/$REPOSITORY/compare/$ROLLBACK_SOURCE_SHA...$APPLICATION_SHA?per_page=1&page=1"', 'bounded GitHub rollback ancestor comparison page');
+  requireText('--max-time 60 --max-filesize 2097152', 'bounded GitHub rollback ancestor response transfer');
+  requireText('[[ -s "$compare_json" && "$(wc -c <"$compare_json")" -le 2097152 ]]', 'bounded GitHub rollback ancestor response file');
+  if (countOf(deploy, '--max-time 60 --max-filesize 2097152') !== 1) fail('GitHub rollback ancestor response transfer bound differs');
   requireText('row.merge_base_commit?.sha !== process.env.ROLLBACK_SOURCE_SHA', 'GitHub rollback ancestor proof');
   requireText("same(manifest.rollback_source_sha, e.ROLLBACK_SOURCE_SHA, 'Manifest rollback source SHA')", 'manifest rollback source binding');
   requireText("['rollback_source_sha',e.ROLLBACK_SOURCE_SHA]", 'compatibility rollback source binding');
@@ -3436,6 +3440,9 @@ function deployMutationCasesV2(source) {
   replace('volume-id-distinction-bypassed', '          [[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]', '          true');
   replaceEvery('derived-rollback-release-rebound-to-candidate', '          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_source_sha }}', '          ROLLBACK_RELEASE_SHA: ${{ inputs.application_sha }}', 2);
   replace('rollback-image-current-identity-bypassed', '          [[ "$ROLLBACK_IMAGE" == "$EXPECTED_CURRENT_IMAGE" ]]', '          true');
+  replace('rollback-ancestor-pagination-removed', '"https://api.github.com/repos/$REPOSITORY/compare/$ROLLBACK_SOURCE_SHA...$APPLICATION_SHA?per_page=1&page=1"', '"https://api.github.com/repos/$REPOSITORY/compare/$ROLLBACK_SOURCE_SHA...$APPLICATION_SHA"');
+  replace('rollback-ancestor-transfer-cap-removed', '--max-time 60 --max-filesize 2097152 \\', '--max-time 60 \\');
+  replace('rollback-ancestor-file-cap-weakened', '[[ -s "$compare_json" && "$(wc -c <"$compare_json")" -le 2097152 ]]', '[[ -s "$compare_json" && "$(wc -c <"$compare_json")" -le 4194304 ]]');
   replace('rollback-ancestor-merge-base-bypassed', '              row.merge_base_commit?.sha !== process.env.ROLLBACK_SOURCE_SHA ||', '              false ||');
   replace('manifest-rollback-source-bypass', "          same(manifest.rollback_source_sha, e.ROLLBACK_SOURCE_SHA, 'Manifest rollback source SHA');", '          true;');
   replace('manifest-legacy-volume-bypass', "          same(manifest.expected_legacy_volume_id, e.EXPECTED_LEGACY_VOLUME_ID, 'Manifest legacy volume ID');", '          true;');
