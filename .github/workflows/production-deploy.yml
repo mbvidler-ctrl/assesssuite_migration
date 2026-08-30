@@ -138,7 +138,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 9188ecf7414b1f44e6b8e9e01e0ec2bc6316435f3a0c2e7c59706b0d26d8af1d
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 2bfe409b7640b8ae6fba889499e433c4d0ff8469646445accf2f990b73197a36
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -1202,23 +1202,57 @@ jobs:
           read_public_settings() {
             local url=$1
             local body=$2
+            local settings_mode=${3:-candidate}
             curl --fail --silent --show-error --max-time 10 \
               -H 'Cache-Control: no-cache' \
               "${url}/api/apps/public/prod/public-settings/by-id/local-assesssuite" \
               -o "$body"
-            jq -e \
-              '.public_settings.legal.status == "effective" and .public_settings.legal.effective_date == "19 July 2026"' \
-              "$body" >/dev/null
+            if [[ "$settings_mode" == 'candidate' ]]; then
+              jq -e '
+                .id == "local-assesssuite" and
+                .public_settings.legal.status == "effective" and
+                .public_settings.legal.effective_date == "19 July 2026" and
+                .public_settings.transcription_enabled == true and
+                .public_settings.capabilities.general_clinical_llm.available == true and
+                .public_settings.capabilities.transcription.available == true and
+                .public_settings.capabilities.document_extraction.available == true
+              ' "$body" >/dev/null
+            else
+              jq -e \
+                '.id == "local-assesssuite" and .public_settings.legal.status == "effective" and .public_settings.legal.effective_date == "19 July 2026"' \
+                "$body" >/dev/null
+            fi
           }
 
           read_public_surface() {
             local url=$1
             local label=$2
             local surface_mode=${3:-candidate}
+            local attempt
+            for attempt in 1 2 3; do
+              if read_public_surface_once "$url" "${label}-attempt-${attempt}" "$surface_mode" "$attempt"; then
+                echo "Public surface ${label} passed on attempt ${attempt}." >&2
+                return 0
+              fi
+              echo "Public surface ${label} attempt ${attempt}/3 failed exact verification." >&2
+              if [[ "$attempt" != '3' ]]; then sleep 5; fi
+            done
+            return 1
+          }
+
+          read_public_surface_once() {
+            local url=$1
+            local label=$2
+            local surface_mode=${3:-candidate}
+            local attempt=${4:-1}
             local html="$RUNNER_TEMP/${label}-index.html"
             local bundle="$RUNNER_TEMP/${label}-bundle.js"
             curl --fail --silent --show-error --max-time 15 \
-              -H 'Cache-Control: no-cache' "$url/" -o "$html" || return 1
+              -H 'Cache-Control: no-cache' \
+              "$url/?release_probe=${APPLICATION_SHA}-${label}-${attempt}" -o "$html" || {
+                echo "Public surface ${label}: index request failed." >&2
+                return 1
+              }
             local asset_path
             asset_path="$(HTML_PATH="$html" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -1231,16 +1265,43 @@ jobs:
           process.stdout.write(match[1]);
           NODE
             )" || return 1
-            curl --fail --silent --show-error --max-time 20 \
-              -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle" || return 1
+            curl --fail --silent --show-error --max-time 60 \
+              -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle" || {
+                echo "Public surface ${label}: entry asset request failed for ${asset_path}." >&2
+                return 1
+              }
 
             if [[ "$surface_mode" == 'candidate' ]]; then
+              local source_map_manifest="$release_control_dir/sentry-source-map-manifest.json"
+              local expected_asset_path expected_asset_sha256 expected_asset_bytes
+              expected_asset_path="/$(jq -er '.runtime_js | select(length == 1) | .[0].path' "$source_map_manifest")" || return 1
+              expected_asset_sha256="$(jq -er '.runtime_js[0].sha256 | select(test("^[0-9a-f]{64}$"))' "$source_map_manifest")" || return 1
+              expected_asset_bytes="$(jq -er '.runtime_js[0].bytes | select(type == "number" and . > 10000 and floor == .)' "$source_map_manifest")" || return 1
+              if [[ "$asset_path" != "$expected_asset_path" ]]; then
+                echo "Public surface ${label}: entry path mismatch; expected ${expected_asset_path}, observed ${asset_path}." >&2
+                return 1
+              fi
+              if [[ "$(sha256sum "$bundle" | awk '{print $1}')" != "$expected_asset_sha256" ]]; then
+                echo "Public surface ${label}: entry asset SHA-256 differs from the sealed candidate." >&2
+                return 1
+              fi
+              if [[ "$(wc -c <"$bundle")" -ne "$expected_asset_bytes" ]]; then
+                echo "Public surface ${label}: entry asset byte length differs from the sealed candidate." >&2
+                return 1
+              fi
+
               local map_body="$RUNNER_TEMP/${label}-entry-map.json"
               local map_status
               map_status="$(curl --silent --show-error --max-time 10 --max-filesize 65536 \
                 -H 'Cache-Control: no-cache' -o "$map_body" -w '%{http_code}' \
                 "$url${asset_path}.map")" || return 1
+              if [[ "$map_status" != '404' ]]; then
+                echo "Public surface ${label}: source-map request returned ${map_status}, expected 404." >&2
+              fi
               [[ "$map_status" == '404' ]] || return 1
+              if [[ "$(<"$map_body")" != '{"message":"not found"}' ]]; then
+                echo "Public surface ${label}: source-map refusal body differs." >&2
+              fi
               [[ "$(<"$map_body")" == '{"message":"not found"}' ]] || return 1
 
               local traversal_body="$RUNNER_TEMP/${label}-asset-traversal.json"
@@ -1248,7 +1309,13 @@ jobs:
               traversal_status="$(curl --path-as-is --silent --show-error --max-time 10 --max-filesize 65536 \
                 -H 'Cache-Control: no-cache' -o "$traversal_body" -w '%{http_code}' \
                 "$url/assets%2F..%2Findex.html")" || return 1
+              if [[ "$traversal_status" != '404' ]]; then
+                echo "Public surface ${label}: traversal request returned ${traversal_status}, expected 404." >&2
+              fi
               [[ "$traversal_status" == '404' ]] || return 1
+              if [[ "$(<"$traversal_body")" != '{"message":"not found"}' ]]; then
+                echo "Public surface ${label}: traversal refusal body differs." >&2
+              fi
               [[ "$(<"$traversal_body")" == '{"message":"not found"}' ]] || return 1
             fi
 
@@ -1322,16 +1389,20 @@ jobs:
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-register-invalid.json" -w '%{http_code}' \
               -H 'Content-Type: application/json' -X POST \
               --data '{}' "$url/api/apps/prod/auth/register")" || return 1
+            if [[ "$status" != '400' ]]; then echo "Public surface ${label}: invalid registration returned ${status}, expected 400." >&2; fi
             [[ "$status" == '400' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-upload.json" -w '%{http_code}' \
               -X POST "$url/api/apps/prod/integration-endpoints/Core/UploadFile")" || return 1
+            if [[ "$status" != '401' ]]; then echo "Public surface ${label}: anonymous upload returned ${status}, expected 401." >&2; fi
             [[ "$status" == '401' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-extraction.json" -w '%{http_code}' \
               -H 'Content-Type: application/json' -X POST --data '{}' \
               "$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile")" || return 1
+            if [[ "$status" != '401' ]]; then echo "Public surface ${label}: anonymous extraction returned ${status}, expected 401." >&2; fi
             [[ "$status" == '401' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-file.json" -w '%{http_code}' \
               "$url/uploads/00000000-0000-4000-8000-000000000000")" || return 1
+            if [[ "$status" != '401' ]]; then echo "Public surface ${label}: anonymous file read returned ${status}, expected 401." >&2; fi
             [[ "$status" == '401' ]] || return 1
           }
 
@@ -1843,8 +1914,8 @@ jobs:
               append_summary "FAILED; rollback /api/version verification failed ($reason)"
               return 1
             fi
-            if ! read_public_settings 'https://app.assesssuite.com' "$RUNNER_TEMP/rollback-apex-public-settings.json" \
-              || ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-public-settings.json"; then
+            if ! read_public_settings 'https://app.assesssuite.com' "$RUNNER_TEMP/rollback-apex-public-settings.json" 'rollback' \
+              || ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-public-settings.json" 'rollback'; then
               append_summary "FAILED; rollback legal settings verification failed ($reason)"
               return 1
             fi

@@ -323,7 +323,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 9188ecf7414b1f44e6b8e9e01e0ec2bc6316435f3a0c2e7c59706b0d26d8af1d
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 2bfe409b7640b8ae6fba889499e433c4d0ff8469646445accf2f990b73197a36
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
