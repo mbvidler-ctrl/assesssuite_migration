@@ -13,7 +13,7 @@ const validator = path.join(repoRoot, 'scripts', 'validate-production-deploy-wor
 
 const GOVERNED_WORKFLOWS = [
   { file: 'production-deploy.yml', mutations: 168, pinsValidator: true },
-  { file: 'production-prepare-release.yml', mutations: 80, pinsValidator: true },
+  { file: 'production-prepare-release.yml', mutations: 85, pinsValidator: true },
   { file: 'production-prepare-rollback-image.yml', mutations: 8, pinsValidator: false },
   { file: 'production-rollback.yml', mutations: 100, pinsValidator: true },
   { file: 'production-parity-assurance.yml', mutations: 87, pinsValidator: true },
