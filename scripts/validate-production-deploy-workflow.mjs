@@ -3165,10 +3165,11 @@ function validatePrepareReleaseWorkflow(input) {
       countOf(active, prepareReleaseFlyctlDownload) !== 1 ||
       countOf(active, 'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64') !== 1 ||
       countOf(active, prepareReleaseRegctlDownload) !== 1 ||
-      countOf(active, '"$RUNNER_TEMP/fly" auth docker') !== 1 ||
-      countOf(active, 'timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/fly" auth docker') !== 1 ||
+      countOf(active, '"$RUNNER_TEMP/fly" auth docker') !== 0 ||
       countOf(active, '"$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin') !== 1 ||
       countOf(active, 'timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin') !== 1 ||
+      countOf(active, '"$RUNNER_TEMP/regctl" image digest "$EXPECTED_CURRENT_IMAGE"') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" image digest "$EXPECTED_CURRENT_IMAGE"') !== 1 ||
       countOf(active, '"$regctl" image copy --force-recursive "$local_ref" "$new_image_tag"') !== 1 ||
       countOf(active, 'timeout --signal=TERM --kill-after=30s 600s "$regctl" image copy --force-recursive "$local_ref" "$new_image_tag"') !== 1 ||
       countOf(active, '"$regctl" image digest "$new_image_tag"') !== 1 ||
@@ -3255,10 +3256,15 @@ function validatePrepareReleaseWorkflow(input) {
       /(^|\n)\s*docker\s+(?:build|run|create|start|exec)\b/.test(publish) || publish.includes('fly deploy ')) {
     fail('credentialed publication job can execute candidate code or mutate production');
   }
-  if (countOf(publish, 'DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config') !== 1 ||
-      countOf(publish, 'REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json') !== 2 ||
-      !publish.includes('rm -f "$derived_token" "$DOCKER_CONFIG/config.json"') ||
-      !publish.includes('rm -f "$REGCTL_CONFIG"') || !publish.includes('[[ ! -e "$REGCTL_CONFIG" ]]') ||
+  const parsedPublishSteps = parseSteps(publish, failures);
+  const registryCredentialStep = parsedPublishSteps.find((step) => step.name === 'Acquire isolated registry credential')?.body || '';
+  const immutablePublicationStep = parsedPublishSteps.find((step) => step.name === 'Publish immutable image and seal compatibility bundle')?.body || '';
+  if (countOf(publish, 'REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json') !== 2 ||
+      countOf(registryCredentialStep, 'REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json') !== 1 ||
+      countOf(immutablePublicationStep, 'REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json') !== 1 ||
+      !registryCredentialStep.includes('rm -f "$REGCTL_CONFIG"') ||
+      !immutablePublicationStep.includes('rm -f "$REGCTL_CONFIG"') ||
+      !immutablePublicationStep.includes('[[ ! -e "$REGCTL_CONFIG" ]]') ||
       publish.includes('DOCKER_CONFIG: ~/.docker') || publish.includes('REGCTL_CONFIG: ~/.regctl')) {
     fail('publication registry credential isolation differs');
   }
@@ -3266,22 +3272,27 @@ function validatePrepareReleaseWorkflow(input) {
   const pushOffset = publish.indexOf('Publish immutable image and seal compatibility bundle');
   const credentialInputMarker = 'FLY_API_' + 'TOKEN:';
   if (authOffset < 0 || pushOffset < 0 || authOffset > pushOffset || publish.slice(pushOffset).includes(credentialInputMarker)) fail('Fly token leaks into publication processing');
-  if (publish.includes('printf \'%s\' "$FLY_API_TOKEN"') || publish.includes('<<<"$FLY_API_TOKEN"')) {
-    fail('long-lived Fly API token is used directly as a registry credential');
+  const directRegistryLogin = 'printf \'%s\' "$FLY_API_TOKEN" | env -u FLY_API_TOKEN \\\n' +
+    '            timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin >/dev/null';
+  if (countOf(publish, directRegistryLogin) !== 1 || publish.includes('<<<"$FLY_API_TOKEN"') ||
+      publish.includes('echo "$FLY_API_TOKEN"') || publish.includes('set -x') || publish.includes('set -o xtrace')) {
+    fail('isolated app-scoped Fly registry login differs');
   }
   for (const needle of [
     "'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2'",
     "'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467'",
     'fly_version="$("$RUNNER_TEMP/fly" version)"',
     "grep -E '^[^[:space:]]+[[:space:]]+v0\\.4\\.71[[:space:]]+linux/amd64([[:space:]]|$)'",
-    'timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/fly" auth docker',
-    "config.auths?.['registry.fly.io']?.auth",
-    "username !== 'x' || !credential.startsWith('fm2_')",
-    "fs.writeFileSync(process.env.DERIVED_TOKEN, credential, { flag: 'wx', mode: 0o600 })",
-    'env -u FLY_API_TOKEN timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin',
-    '<"$derived_token" >/dev/null',
+    'EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}',
+    '[[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\\.fly\\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]',
+    'env -u FLY_API_TOKEN "$RUNNER_TEMP/regctl" registry logout registry.fly.io >/dev/null 2>&1 || true',
+    'printf \'%s\' "$FLY_API_TOKEN" | env -u FLY_API_TOKEN',
+    'timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin',
+    'expected_digest="${EXPECTED_CURRENT_IMAGE##*@}"',
+    'authenticated_digest="$(timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" image digest "$EXPECTED_CURRENT_IMAGE")"',
+    '[[ "$authenticated_digest" == "$expected_digest" ]]',
     'unset FLY_API_TOKEN',
-    '[[ ! -e "$derived_token" && ! -e "$DOCKER_CONFIG" ]]',
+    '[[ -z "${FLY_API_TOKEN:-}" ]]',
     "tarfile.open(archive_path, mode='r:gz')",
     'not (member.isdir() or member.isfile())',
     "destination.open('xb')",
@@ -4223,14 +4234,22 @@ function prepareReleaseMutationCases(source) {
   replace('publish-npm-injected', '          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"', '          npm ci\n          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"');
   replace('publish-docker-run-injected', '          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"', '          docker run "$local_image"\n          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"');
   replace('publish-fly-deploy-injected', '          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"', '          fly deploy .\n          local_ref="ocidir://$candidate_oci:$APPLICATION_SHA"');
-  replace('publication-default-docker-config', '          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config', '          DOCKER_CONFIG: ~/.docker');
-  replace('publication-default-regctl-config', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config\n          REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config\n          REGCTL_CONFIG: ~/.regctl/config.json');
-  replace('publication-auth-cleanup-removed', '            rm -f "$REGCTL_CONFIG"', '            true');
+  replace(
+    'publication-default-regctl-config',
+    '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json\n          EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}',
+    '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          REGCTL_CONFIG: ~/.regctl/config.json\n          EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}',
+  );
+  replace(
+    'publication-auth-cleanup-removed',
+    '          cleanup_failed_registry_bootstrap() {\n            env -u FLY_API_TOKEN "$RUNNER_TEMP/regctl" registry logout registry.fly.io >/dev/null 2>&1 || true\n            rm -f "$REGCTL_CONFIG"',
+    '          cleanup_failed_registry_bootstrap() {\n            env -u FLY_API_TOKEN "$RUNNER_TEMP/regctl" registry logout registry.fly.io >/dev/null 2>&1 || true\n            true',
+  );
   replace('publication-flyctl-checksum-mutated', "'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2'", "'0782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2'");
   replace('publication-regctl-checksum-mutated', "'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467'", "'093aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467'");
-  replace('publication-registry-exchange-shape-bypassed', "username !== 'x' || !credential.startsWith('fm2_')", 'false');
-  replace('publication-registry-exchange-timeout-removed', 'timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/fly" auth docker', '"$RUNNER_TEMP/fly" auth docker');
-  replace('publication-direct-long-lived-token-injected', '<"$derived_token" >/dev/null', '<<<"$FLY_API_TOKEN" >/dev/null');
+  replace('publication-registry-login-inherits-token', 'printf \'%s\' "$FLY_API_TOKEN" | env -u FLY_API_TOKEN \\\n', 'printf \'%s\' "$FLY_API_TOKEN" | env \\\n');
+  replace('publication-registry-login-timeout-removed', 'timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin', '"$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin');
+  replace('publication-authenticated-preflight-bypassed', '          [[ "$authenticated_digest" == "$expected_digest" ]]', '          true');
+  replace('publication-token-unset-removed', '          unset FLY_API_TOKEN', '          true');
   replace('publication-archive-member-type-bypassed', 'not (member.isdir() or member.isfile())', 'False');
   replace('publication-config-identity-bypassed', 'row.config?.digest !== process.env.CANDIDATE_IMAGE_ID', 'false');
   replace('publication-remote-digest-bypassed', '          [[ "$remote_digest" == "$candidate_registry_digest" ]]', '          true');
