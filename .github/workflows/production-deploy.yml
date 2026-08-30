@@ -138,7 +138,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: f17515cd4ab034ec27068f37b8c068ed226f68252bbb534637f68e520bd5adb8
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 9188ecf7414b1f44e6b8e9e01e0ec2bc6316435f3a0c2e7c59706b0d26d8af1d
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -1274,22 +1274,25 @@ jobs:
             }
           }
           if (process.env.SURFACE_MODE === 'candidate') {
-            for (const required of [
-              'Extract Data from',
-              'Starting extraction confirms that the patient is 13 or older',
-              'the practice has documented the patient or representative notice and consent, or another valid authority, for AssessSuite and OpenAI to process this referral',
-              'No client record changes until you review and confirm the extracted data.',
-              'Your current practice could not be resolved. Refresh the page or check your practice membership.',
-            ]) {
+            const candidateRequiredMarkers = [
+              "Extract Data from",
+              "Starting extraction confirms that",
+              "the patient or representative has received the required notice and the practice has documented consent or another valid authority",
+              "the parent, guardian or other authorised representative has received the required notice and the practice has documented consent or another valid authority",
+              "for AssessSuite and OpenAI to process this referral. No patient record changes until you review and confirm the extracted data.",
+              "Your current practice could not be resolved. Refresh the page or check your practice membership."
+            ];
+            for (const required of candidateRequiredMarkers) {
               if (!bundle.includes(required)) throw new Error(`Production bundle is missing required referral-recovery wording: ${required}`);
             }
-            for (const forbidden of [
-              'Confirm Patient 13+ & Extract Data from',
-              'By selecting Confirm Patient 13+ & Extract',
-              'Owning practice',
-              'The server calculates the age category',
-              'I confirm the practice has documented the patient',
-            ]) {
+            const candidateForbiddenMarkers = [
+              "Confirm Patient 13+ & Extract Data from",
+              "By selecting Confirm Patient 13+ & Extract",
+              "Owning practice",
+              "The server calculates the age category",
+              "I confirm the practice has documented the patient"
+            ];
+            for (const forbidden of candidateForbiddenMarkers) {
               if (bundle.toLowerCase().includes(forbidden.toLowerCase())) {
                 throw new Error(`Production bundle retains superseded referral-preflight wording: ${forbidden}`);
               }

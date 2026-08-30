@@ -121,7 +121,9 @@ jobs:
           node scripts/scan-release-diff.mjs "${RUNNER_TEMP}/pull-request.diff"
 
       - name: Build authenticated platform
-        run: npm run build:platform
+        run: |
+          npm run build:platform
+          npm run verify:production-public-surface
 
       - name: Verify deterministic Physio catalogue
         run: npm run catalogue:physio:check

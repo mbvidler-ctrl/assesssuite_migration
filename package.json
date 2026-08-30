@@ -18,6 +18,7 @@
     "build:landing": "vite build --config apps/landing/vite.config.js",
     "build:platform": "vite build --config apps/app-ep/vite.config.js",
     "build:physio": "vite build --config apps/app-physio/vite.config.js",
+    "verify:production-public-surface": "node scripts/validate-production-public-surface.mjs dist",
     "verify:split-build": "node scripts/verify-split-build.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -p ./jsconfig.json",

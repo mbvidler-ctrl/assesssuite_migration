@@ -2364,6 +2364,8 @@ function validateDeployWorkflowV2(input) {
   requireText("read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", 'pre-mutation application-host version freeze');
   requireText("read_version 'https://assesssuite-production.fly.dev' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-fly-version.json\"", 'pre-mutation Fly-domain version freeze');
   requireText('public-settings/by-id/local-assesssuite', 'exact admitted EP public-settings identity');
+  requireText('"Starting extraction confirms that"', 'compiled referral-attestation prefix marker');
+  requireText('"for AssessSuite and OpenAI to process this referral. No patient record changes until you review and confirm the extracted data."', 'compiled referral no-write marker');
   requireText("'Exercise Physiology at its Clinical Best.'", 'postrollback pre-split landing marker');
   requireText("'Terms & Conditions'", 'postrollback stable legal-navigation marker');
   requireText('for route in legal/privacy login; do', 'postrollback legal and application route checks');
@@ -3224,9 +3226,9 @@ function validatePrepareReleaseWorkflow(input) {
   if (JSON.stringify(stepsIn(sentryUpload)) !== JSON.stringify(expectedSentrySteps)) fail('prepare-release Sentry upload steps differ');
   if (JSON.stringify(stepsIn(publish)) !== JSON.stringify(expectedPublishSteps)) fail('prepare-release publication steps differ');
   if (JSON.stringify(stepsIn(compatibility)) !== JSON.stringify(expectedCompatibilitySteps)) fail('prepare-release compatibility steps differ');
-  requireText("for (const script of ['build:platform', 'build:landing', 'verify:split-build', 'test:split-hosting'])", 'complete split-hosting package-script declaration');
+  requireText("for (const script of ['build:platform', 'build:landing', 'verify:production-public-surface', 'verify:split-build', 'test:split-hosting'])", 'complete split-hosting package-script declaration');
   requireText('if (!pkg.scripts?.[script])', 'fail-closed split-hosting package-script check');
-  for (const script of ['build:platform', 'build:landing', 'verify:split-build', 'test:split-hosting']) {
+  for (const script of ['build:platform', 'build:landing', 'verify:production-public-surface', 'verify:split-build', 'test:split-hosting']) {
     if (!gates.includes(`npm run ${script}`)) fail('prepare-release split-hosting gate is not executed: ' + script);
   }
   if (countOf(active, 'npm run build:platform') !== 2) {
@@ -3457,6 +3459,7 @@ function deployMutationCasesV2(source) {
   replace('manifest-expected-current-rollback-image-bypass', "          same(manifest.rollback_image_ref, e.EXPECTED_CURRENT_IMAGE, 'Manifest expected current image ref');", '          true;');
   replace('pre-mutation-app-version-rebound-to-candidate', "read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", "read_version 'https://app.assesssuite.com' \"$APPLICATION_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"");
   replace('public-settings-app-id-substituted', 'public-settings/by-id/local-assesssuite', 'public-settings/by-id/release-verification');
+  replace('candidate-referral-attestation-marker-substituted', '"Starting extraction confirms that"', '"Starting extraction confirms that the patient is 13 or older"');
   replace('postrollback-old-landing-marker-removed', "              'Exercise Physiology at its Clinical Best.',", "              'unrelated marker',");
   replace('postrollback-stable-legal-marker-removed', "              'Terms & Conditions',", "              'unrelated legal marker',");
   replace('postrollback-legal-app-routes-removed', '              for route in legal/privacy login; do', '              for route in root-only; do');
@@ -4440,9 +4443,10 @@ function prepareReleaseMutationCases(source) {
   replace('prepare-release-manifest-legacy-volume-rebound-to-active', '            expected_legacy_volume_id: e.EXPECTED_LEGACY_VOLUME_ID,', '            expected_legacy_volume_id: e.EXPECTED_VOLUME_ID,');
   replace(
     'prepare-release-platform-build-removed',
-    '          npm run build:platform\n          npm run build:landing',
-    '          true\n          npm run build:landing',
+    '          npm run build:platform\n          npm run verify:production-public-surface',
+    '          true\n          npm run verify:production-public-surface',
   );
+  replace('prepare-release-production-surface-verification-removed', '          npm run verify:production-public-surface', '          true # production surface verification removed');
   replace('prepare-release-landing-build-removed', '          npm run build:landing', '          true');
   replace('prepare-release-split-build-verification-removed', '          npm run verify:split-build', '          true');
   replace('prepare-release-split-hosting-test-removed', '          npm run test:split-hosting', '          true');
