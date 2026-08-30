@@ -323,7 +323,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: fdafdd0aeb1de62a16142ce33e911b82fd7b133e919f0b155e365dc61574b833
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 9aedbd58b9673683c2f310fd12ec4b719af64920b3dae6a960d3fb6bb20513c3
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -1150,29 +1150,53 @@ jobs:
       - name: Acquire isolated registry credential
         shell: bash
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_EP_REGISTRY_TOKEN }}
+          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config
           REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json
           EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
         run: |
           set -euo pipefail
           set +x
           umask 077
+          derived_token="$RUNNER_TEMP/publication-derived-registry-token"
           cleanup_failed_registry_bootstrap() {
             env -u FLY_API_TOKEN "$RUNNER_TEMP/regctl" registry logout registry.fly.io >/dev/null 2>&1 || true
-            rm -f "$REGCTL_CONFIG"
+            rm -f "$derived_token" "$DOCKER_CONFIG/config.json" "$REGCTL_CONFIG"
+            rmdir "$DOCKER_CONFIG" >/dev/null 2>&1 || true
           }
           trap cleanup_failed_registry_bootstrap EXIT
-          [[ -n "$FLY_API_TOKEN" && ! -e "$REGCTL_CONFIG" ]]
+          [[ -n "$FLY_API_TOKEN" && ! -e "$DOCKER_CONFIG" && ! -e "$REGCTL_CONFIG" && ! -e "$derived_token" ]]
           [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
-          printf '%s' "$FLY_API_TOKEN" | env -u FLY_API_TOKEN \
-            timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin >/dev/null
+          install -d -m 0700 "$DOCKER_CONFIG"
+          timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/fly" auth docker >/dev/null
+          [[ "$(find "$DOCKER_CONFIG" -mindepth 1 -maxdepth 1 -printf '%f\n')" == 'config.json' ]]
+          [[ -f "$DOCKER_CONFIG/config.json" && ! -L "$DOCKER_CONFIG/config.json" ]]
+          DOCKER_AUTH="$DOCKER_CONFIG/config.json" DERIVED_TOKEN="$derived_token" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync(process.env.DOCKER_AUTH, 'utf8'));
+          const encoded = config.auths?.['registry.fly.io']?.auth;
+          if (typeof encoded !== 'string' || encoded.length < 8) throw new Error('Fly registry exchange output differs');
+          const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+          const separator = decoded.indexOf(':');
+          const username = decoded.slice(0, separator);
+          const credential = decoded.slice(separator + 1);
+          if (separator < 1 || username !== 'x' || !credential.startsWith('fm2_') ||
+              credential.length < 100 || /[\r\n]/.test(credential)) {
+            throw new Error('Fly registry exchange credential differs');
+          }
+          fs.writeFileSync(process.env.DERIVED_TOKEN, credential, { flag: 'wx', mode: 0o600 });
+          NODE
+          env -u FLY_API_TOKEN timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin \
+            <"$derived_token" >/dev/null
           [[ -f "$REGCTL_CONFIG" && ! -L "$REGCTL_CONFIG" ]]
+          rm -f "$derived_token" "$DOCKER_CONFIG/config.json"
+          rmdir "$DOCKER_CONFIG"
           unset FLY_API_TOKEN
           expected_digest="${EXPECTED_CURRENT_IMAGE##*@}"
           authenticated_digest="$(timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" image digest "$EXPECTED_CURRENT_IMAGE")"
           [[ "$authenticated_digest" == "$expected_digest" ]]
           trap - EXIT
-          [[ -z "${FLY_API_TOKEN:-}" ]]
+          [[ -z "${FLY_API_TOKEN:-}" && ! -e "$derived_token" && ! -e "$DOCKER_CONFIG" ]]
 
       - name: Publish immutable image and seal compatibility bundle
         id: publish
