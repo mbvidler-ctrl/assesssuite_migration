@@ -323,7 +323,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: c3a774ac6a467b446b24590f048c989a6248fae8097e1b5fc636fa19e5022f22
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: bb3ad7c8835b080ca28ac36757728a2baf370f64fb906148fed3d7bea80e9361
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -1125,32 +1125,71 @@ jobs:
           [[ -d "$candidate_oci/blobs/sha256" && ! -L "$candidate_oci/blobs/sha256" ]]
           if find "$candidate_oci" -type l -print -quit | grep -q .; then exit 1; fi
 
-      - name: Install checksum-verified regctl 0.11.5 without credentials
+      - name: Install checksum-verified flyctl 0.4.71 and regctl 0.11.5 without credentials
         shell: bash
         run: |
           set -euo pipefail
           [[ -z "${FLY_API_TOKEN:-}" ]]
-          binary="$RUNNER_TEMP/regctl"
+          fly_archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          regctl_binary="$RUNNER_TEMP/regctl"
           curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
-            --output "$binary" \
+            --output "$fly_archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$fly_archive" | sha256sum --check --strict
+          tar -xzf "$fly_archive" -C "$RUNNER_TEMP" flyctl
+          install -m 0755 "$RUNNER_TEMP/flyctl" "$RUNNER_TEMP/fly"
+          "$RUNNER_TEMP/fly" version | grep -F 'flyctl v0.4.71'
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
+            --output "$regctl_binary" \
             'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'
-          printf '%s  %s\n' 'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467' "$binary" | sha256sum --check --strict
-          chmod 0755 "$binary"
-          "$binary" version | grep -F 'VCSTag:     v0.11.5'
+          printf '%s  %s\n' 'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467' "$regctl_binary" | sha256sum --check --strict
+          chmod 0755 "$regctl_binary"
+          "$regctl_binary" version | grep -F 'VCSTag:     v0.11.5'
 
       - name: Acquire isolated registry credential
         shell: bash
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config
           REGCTL_CONFIG: ${{ runner.temp }}/publication-regctl-config.json
         run: |
           set -euo pipefail
           set +x
           umask 077
-          [[ -n "$FLY_API_TOKEN" && ! -e "$REGCTL_CONFIG" ]]
-          printf '%s' "$FLY_API_TOKEN" | timeout --signal=TERM --kill-after=10s 60s \
-            "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin >/dev/null
+          derived_token="$RUNNER_TEMP/publication-derived-registry-token"
+          cleanup_failed_registry_bootstrap() {
+            rm -f "$derived_token" "$DOCKER_CONFIG/config.json" "$REGCTL_CONFIG"
+            rmdir "$DOCKER_CONFIG" >/dev/null 2>&1 || true
+          }
+          trap cleanup_failed_registry_bootstrap EXIT
+          [[ -n "$FLY_API_TOKEN" && ! -e "$DOCKER_CONFIG" && ! -e "$REGCTL_CONFIG" && ! -e "$derived_token" ]]
+          install -d -m 0700 "$DOCKER_CONFIG"
+          timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/fly" auth docker >/dev/null
+          [[ "$(find "$DOCKER_CONFIG" -mindepth 1 -maxdepth 1 -printf '%f\n')" == 'config.json' ]]
+          [[ -f "$DOCKER_CONFIG/config.json" && ! -L "$DOCKER_CONFIG/config.json" ]]
+          DOCKER_AUTH="$DOCKER_CONFIG/config.json" DERIVED_TOKEN="$derived_token" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync(process.env.DOCKER_AUTH, 'utf8'));
+          const encoded = config.auths?.['registry.fly.io']?.auth;
+          if (typeof encoded !== 'string' || encoded.length < 8) throw new Error('Fly registry exchange output differs');
+          const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+          const separator = decoded.indexOf(':');
+          const username = decoded.slice(0, separator);
+          const credential = decoded.slice(separator + 1);
+          if (separator < 1 || username !== 'x' || !credential.startsWith('fm2_') ||
+              credential.length < 100 || /[\r\n]/.test(credential)) {
+            throw new Error('Fly registry exchange credential differs');
+          }
+          fs.writeFileSync(process.env.DERIVED_TOKEN, credential, { flag: 'wx', mode: 0o600 });
+          NODE
+          env -u FLY_API_TOKEN timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin \
+            <"$derived_token" >/dev/null
           [[ -f "$REGCTL_CONFIG" && ! -L "$REGCTL_CONFIG" ]]
+          rm -f "$derived_token" "$DOCKER_CONFIG/config.json"
+          rmdir "$DOCKER_CONFIG"
+          unset FLY_API_TOKEN
+          trap - EXIT
+          [[ ! -e "$derived_token" && ! -e "$DOCKER_CONFIG" ]]
 
       - name: Publish immutable image and seal compatibility bundle
         id: publish
