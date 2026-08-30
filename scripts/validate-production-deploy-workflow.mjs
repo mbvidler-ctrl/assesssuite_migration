@@ -663,7 +663,9 @@ function validateAuxWorkflow(input, kind) {
     requireStepText(verificationStepName, '== "$TRUSTED_WORKFLOW_SHA" ]]', 'trusted rollback-control checkout identity');
     requireStepText(finalStepName, 'org.opencontainers.image.revision', 'rollback image OCI revision binding');
     requireStepText(finalStepName, 'read_version \'https://app.assesssuite.com\' "$FAILED_APPLICATION_SHA"', 'current version check before mutation');
+    requireStepText(finalStepName, 'public-settings/by-id/local-assesssuite', 'exact admitted EP public-settings identity');
     requireStepText(finalStepName, "'Exercise Physiology at its Clinical Best.'", 'pre-split landing marker');
+    requireStepText(finalStepName, "'Terms & Conditions'", 'stable pre-split legal-navigation marker');
     requireStepText(finalStepName, 'for route in legal/privacy login; do', 'legal and application route verification');
     requireStepText(finalStepName, 'assert_topology postrollback', 'postrollback r12 and detached-legacy topology verification');
     requireStepText(finalStepName, 'fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'exact application URL staged secret');
@@ -1550,7 +1552,9 @@ function auxMutationCases(source, kind) {
     );
     replace('rollback-ancestor-proof-bypassed', '          git -C "$source_dir" merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$FAILED_APPLICATION_SHA"', '          true');
     replace('rollback-pre-mutation-version-rebound-to-source', "read_version 'https://app.assesssuite.com' \"$FAILED_APPLICATION_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", "read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"");
+    replace('rollback-public-settings-app-id-substituted', 'public-settings/by-id/local-assesssuite', 'public-settings/by-id/rollback-verification');
     replace('rollback-old-landing-marker-removed', "            'Exercise Physiology at its Clinical Best.',", "            'unrelated marker',");
+    replace('rollback-stable-legal-marker-removed', "            'Terms & Conditions',", "            'unrelated legal marker',");
     replace('rollback-legal-app-routes-removed', '            for route in legal/privacy login; do', '            for route in root-only; do');
     replace('rollback-post-topology-removed', '          if ! assert_topology postrollback; then', '          if false; then');
     replace('rollback-app-url-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com --stage --app "$app"');
@@ -2359,7 +2363,9 @@ function validateDeployWorkflowV2(input) {
   requireText("['expected_legacy_volume_id',e.EXPECTED_LEGACY_VOLUME_ID]", 'publication and compatibility legacy volume binding');
   requireText("read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", 'pre-mutation application-host version freeze');
   requireText("read_version 'https://assesssuite-production.fly.dev' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-fly-version.json\"", 'pre-mutation Fly-domain version freeze');
+  requireText('public-settings/by-id/local-assesssuite', 'exact admitted EP public-settings identity');
   requireText("'Exercise Physiology at its Clinical Best.'", 'postrollback pre-split landing marker');
+  requireText("'Terms & Conditions'", 'postrollback stable legal-navigation marker');
   requireText('for route in legal/privacy login; do', 'postrollback legal and application route checks');
   requireText('assert_volume_snapshot_policy postrollback "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"', 'postrollback r12 and detached-legacy topology check');
   const publicSurfaceStart = finalFlyStep.indexOf('read_public_surface() {');
@@ -3450,7 +3456,9 @@ function deployMutationCasesV2(source) {
   replace('manifest-legacy-volume-bypass', "          same(manifest.expected_legacy_volume_id, e.EXPECTED_LEGACY_VOLUME_ID, 'Manifest legacy volume ID');", '          true;');
   replace('manifest-expected-current-rollback-image-bypass', "          same(manifest.rollback_image_ref, e.EXPECTED_CURRENT_IMAGE, 'Manifest expected current image ref');", '          true;');
   replace('pre-mutation-app-version-rebound-to-candidate', "read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", "read_version 'https://app.assesssuite.com' \"$APPLICATION_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"");
+  replace('public-settings-app-id-substituted', 'public-settings/by-id/local-assesssuite', 'public-settings/by-id/release-verification');
   replace('postrollback-old-landing-marker-removed', "              'Exercise Physiology at its Clinical Best.',", "              'unrelated marker',");
+  replace('postrollback-stable-legal-marker-removed', "              'Terms & Conditions',", "              'unrelated legal marker',");
   replace('postrollback-legal-app-routes-removed', '              for route in legal/privacy login; do', '              for route in root-only; do');
   replace('postrollback-topology-check-removed', '            if ! assert_volume_snapshot_policy postrollback "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"; then', '            if false; then');
   replace(

@@ -238,7 +238,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 41c3c9f823394ed794bd924fbb9a4502310a71e310ac15f8f8fdb9bad327a922
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: f17515cd4ab034ec27068f37b8c068ed226f68252bbb534637f68e520bd5adb8
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -535,7 +535,7 @@ jobs:
             local body=$2
             curl --fail --silent --show-error --max-time 10 \
               -H 'Cache-Control: no-cache' \
-              "$url/api/apps/public/prod/public-settings/by-id/rollback-verification" \
+              "$url/api/apps/public/prod/public-settings/by-id/local-assesssuite" \
               -o "$body"
             jq -e \
               '.public_settings.legal.status == "effective" and .public_settings.legal.effective_date == "19 July 2026"' \
@@ -583,7 +583,7 @@ jobs:
           for (const required of [
             'Exercise Physiology at its Clinical Best.',
             'AssessSuite Privacy Policy',
-            'Back to AssessSuite',
+            'Terms & Conditions',
           ]) {
             if (!bundle.includes(required)) throw new Error('Rollback bundle is missing the pre-split surface marker: ' + required);
           }

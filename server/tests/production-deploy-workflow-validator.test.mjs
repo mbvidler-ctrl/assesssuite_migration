@@ -12,10 +12,10 @@ const repoRoot = path.resolve(testsDir, '..', '..');
 const validator = path.join(repoRoot, 'scripts', 'validate-production-deploy-workflow.mjs');
 
 const GOVERNED_WORKFLOWS = [
-  { file: 'production-deploy.yml', mutations: 171, pinsValidator: true },
+  { file: 'production-deploy.yml', mutations: 173, pinsValidator: true },
   { file: 'production-prepare-release.yml', mutations: 87, pinsValidator: true },
   { file: 'production-prepare-rollback-image.yml', mutations: 8, pinsValidator: false },
-  { file: 'production-rollback.yml', mutations: 100, pinsValidator: true },
+  { file: 'production-rollback.yml', mutations: 102, pinsValidator: true },
   { file: 'production-parity-assurance.yml', mutations: 87, pinsValidator: true },
 ];
 
@@ -617,6 +617,16 @@ test('V09a the seeded launch gate probes the admitted EP application identity', 
     /public-settings\/by-id\/probe/,
     'an arbitrary probe identity is rejected by the cross-target application boundary',
   );
+});
+
+test('V09aa live release verification uses the admitted EP identity and stable rollback markers', () => {
+  for (const file of ['production-deploy.yml', 'production-rollback.yml']) {
+    const workflow = fs.readFileSync(workflowPath(file), 'utf8');
+    assert.match(workflow, /public-settings\/by-id\/local-assesssuite/);
+    assert.doesNotMatch(workflow, /public-settings\/by-id\/(?:release|rollback)-verification/);
+    assert.match(workflow, /'Terms & Conditions'/);
+    assert.doesNotMatch(workflow, /'Back to AssessSuite'/);
+  }
 });
 
 test('V09b the seeded launch gate rejects the retired unsigned Stripe success path', () => {
