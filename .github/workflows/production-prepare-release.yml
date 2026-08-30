@@ -323,7 +323,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: f17515cd4ab034ec27068f37b8c068ed226f68252bbb534637f68e520bd5adb8
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 9188ecf7414b1f44e6b8e9e01e0ec2bc6316435f3a0c2e7c59706b0d26d8af1d
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -377,7 +377,7 @@ jobs:
           if (!pkg.scripts?.['test:forward-rollback-compatibility']) {
             throw new Error('Required exact-image forward/rollback compatibility gate is absent');
           }
-          for (const script of ['build:platform', 'build:landing', 'verify:split-build', 'test:split-hosting']) {
+          for (const script of ['build:platform', 'build:landing', 'verify:production-public-surface', 'verify:split-build', 'test:split-hosting']) {
             if (!pkg.scripts?.[script]) throw new Error(`Required split-hosting package script ${script} is absent`);
           }
           if (!fs.existsSync('server/tests/forward-rollback-compatibility.test.mjs')) {
@@ -390,6 +390,7 @@ jobs:
         run: |
           set -euo pipefail
           npm run build:platform
+          npm run verify:production-public-surface
           npm run build:landing
           npm run verify:split-build
           npm run test:split-hosting

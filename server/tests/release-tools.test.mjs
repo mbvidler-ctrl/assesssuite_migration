@@ -7,6 +7,13 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { scanReleaseDiff } from '../../scripts/scan-release-diff.mjs';
 import {
+  CANDIDATE_FORBIDDEN_MARKERS,
+  CANDIDATE_REQUIRED_MARKERS,
+  COMMON_FORBIDDEN_MARKERS,
+  COMMON_REQUIRED_MARKERS,
+  validateProductionPublicSurface,
+} from '../../scripts/validate-production-public-surface.mjs';
+import {
   REFERRAL_PROCESSING_ATTESTATION,
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
@@ -18,6 +25,12 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
 const comparator = path.join(repoRoot, 'scripts', 'compare-typecheck-baseline.mjs');
 const secretPreflight = path.join(repoRoot, 'scripts', 'check-production-secrets.mjs');
+
+function readWorkflowMarkerArray(source, name) {
+  const match = new RegExp(`const ${name} = (\\[[\\s\\S]*?\\n\\s*\\]);`).exec(source);
+  assert.ok(match, `workflow marker array ${name} is missing`);
+  return JSON.parse(match[1]);
+}
 
 function runComparator(baseText, candidateText) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-typecheck-gate-'));
@@ -170,8 +183,19 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
     '[[ "$traversal_status" == \'404\' ]] || return 1',
     '[[ "$(<"$traversal_body")" == \'{"message":"not found"}\' ]] || return 1',
   ]) assert.ok(deploySource.includes(required), `deploy public-surface canary lacks ${required}`);
+  assert.deepEqual(readWorkflowMarkerArray(deploySource, 'candidateRequiredMarkers'), CANDIDATE_REQUIRED_MARKERS);
+  assert.deepEqual(readWorkflowMarkerArray(deploySource, 'candidateForbiddenMarkers'), CANDIDATE_FORBIDDEN_MARKERS);
+  for (const marker of [...COMMON_REQUIRED_MARKERS, ...COMMON_FORBIDDEN_MARKERS]) {
+    assert.ok(deploySource.includes(marker), `deploy public-surface canary lacks common marker ${marker}`);
+  }
+  assert.doesNotMatch(deploySource, /Starting extraction confirms that the patient is 13 or older/);
+  assert.doesNotMatch(deploySource, /No client record changes until you review and confirm the extracted data\./);
   assert.match(deploySource, /read_public_surface 'https:\/\/app\.assesssuite\.com' 'apex'/);
   assert.match(deploySource, /read_public_surface 'https:\/\/assesssuite-production\.fly\.dev' 'fly'/);
+  for (const file of ['production-prepare-release.yml', 'ci.yml']) {
+    const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
+    assert.match(source, /npm run verify:production-public-surface/);
+  }
   for (const file of ['production-prepare-release.yml']) {
     const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
     const marker = '      - name: Secret and high-entropy diff scan';
@@ -188,6 +212,24 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
   assert.match(retired, /name: RETIRED - Production prepare rollback image/);
   assert.match(retired, /exit 1/);
   assert.doesNotMatch(retired, /FLY_API_TOKEN|fly deploy|docker |npm |node |uses:/);
+});
+
+test('T04a compiled production-surface validator rejects missing and forbidden markers', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-production-surface-'));
+  try {
+    fs.mkdirSync(path.join(root, 'assets'));
+    fs.writeFileSync(path.join(root, 'index.html'), '<!doctype html><script type="module" src="/assets/index-test.js"></script>');
+    const bundlePath = path.join(root, 'assets', 'index-test.js');
+    const validBundle = `${[...COMMON_REQUIRED_MARKERS, ...CANDIDATE_REQUIRED_MARKERS].join('\n')}\n${'x'.repeat(12_000)}`;
+    fs.writeFileSync(bundlePath, validBundle);
+    assert.equal(validateProductionPublicSurface(root).result, 'PASS');
+    fs.writeFileSync(bundlePath, validBundle.replace(CANDIDATE_REQUIRED_MARKERS[1], 'missing marker'));
+    assert.throws(() => validateProductionPublicSurface(root), /missing required marker/);
+    fs.writeFileSync(bundlePath, `${validBundle}\n${CANDIDATE_FORBIDDEN_MARKERS[0]}`);
+    assert.throws(() => validateProductionPublicSurface(root), /retains forbidden marker/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('T05 release scanner accepts the exact reviewed diff and rejects constructed secret material', () => {
