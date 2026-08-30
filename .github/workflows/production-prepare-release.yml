@@ -323,7 +323,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: bb3ad7c8835b080ca28ac36757728a2baf370f64fb906148fed3d7bea80e9361
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 8becd7d19325f2315e6559e64b53d9e7c73a4c8471ac081fbf021c7bf7e06fcd
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -1138,7 +1138,8 @@ jobs:
           printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$fly_archive" | sha256sum --check --strict
           tar -xzf "$fly_archive" -C "$RUNNER_TEMP" flyctl
           install -m 0755 "$RUNNER_TEMP/flyctl" "$RUNNER_TEMP/fly"
-          "$RUNNER_TEMP/fly" version | grep -F 'flyctl v0.4.71'
+          fly_version="$("$RUNNER_TEMP/fly" version)"
+          printf '%s\n' "$fly_version" | grep -E '^[^[:space:]]+[[:space:]]+v0\.4\.71[[:space:]]+linux/amd64([[:space:]]|$)'
           curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
             --output "$regctl_binary" \
             'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'
