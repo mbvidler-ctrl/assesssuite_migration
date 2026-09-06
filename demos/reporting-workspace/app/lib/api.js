@@ -1,7 +1,8 @@
 // Thin API client for the demo workspace. All writes are named commands; the
 // browser never writes entity rows.
 
-const TOKEN_KEY = 'assesssuite-reporting-demo-token';
+// Name of the sessionStorage entry holding the demonstration session handle.
+const SESSION_STORAGE_ENTRY = 'assesssuite-reporting-demo-session';
 
 export class ApiError extends Error {
   constructor(status, body) {
@@ -15,7 +16,7 @@ export class ApiError extends Error {
 
 export function getToken() {
   try {
-    return window.sessionStorage.getItem(TOKEN_KEY) || '';
+    return window.sessionStorage.getItem(SESSION_STORAGE_ENTRY) || '';
   } catch {
     return '';
   }
@@ -23,8 +24,8 @@ export function getToken() {
 
 export function setToken(token) {
   try {
-    if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
-    else window.sessionStorage.removeItem(TOKEN_KEY);
+    if (token) window.sessionStorage.setItem(SESSION_STORAGE_ENTRY, token);
+    else window.sessionStorage.removeItem(SESSION_STORAGE_ENTRY);
   } catch {
     /* storage unavailable: the session lives in memory only */
   }
