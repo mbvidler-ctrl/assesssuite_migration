@@ -1,0 +1,16 @@
+{
+  "name": "assesssuite-reporting-workspace-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Cloned demonstration workspace for the AssessSuite evidence-grounded reporting workflow. Synthetic data only. Not a deployment source.",
+  "scripts": {
+    "demo:api": "node server/start.mjs",
+    "demo:api:reset": "node server/start.mjs --reset",
+    "demo:app": "vite --config vite.config.js",
+    "demo:build": "vite build --config vite.config.js",
+    "demo:test": "node --test \"tests/*.test.mjs\"",
+    "demo:lint": "eslint --config eslint.config.js .",
+    "demo:walkthrough": "npm run demo:build && playwright test --config e2e/playwright.config.mjs"
+  }
+}
