@@ -38,7 +38,11 @@ import {
 } from './auth.mjs';
 import { createFounderOrganizationEnsurer, handleCoreIntegration } from './integrations.mjs';
 import { createApiUsageService } from './apiUsage.mjs';
-import { publicCapabilities } from './capabilities.mjs';
+import {
+  openRegistrationAvailable,
+  publicCapabilities,
+  publicRegistrationPosture,
+} from './capabilities.mjs';
 import { capabilityConfigured, capabilityEnabled } from './capabilityFlags.mjs';
 import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
 import {
@@ -151,13 +155,13 @@ const authEmailGlobalLimiter = createFixedWindowRateLimiter({ limit: 60, windowM
 // and clinical-admission contract for the process. Explicit cross-target or
 // unknown profession configuration fails bootstrap here.
 const CLINICAL_RELEASE_POLICY = resolveClinicalReleasePolicy(process.env);
-// Physio is a private, invitation-only product. Its explicit raw switch must
-// remain authoritative even under SELFTEST, where the shared EP harness
-// historically implies registration on. This lets the same harness exercise
-// the real closed-registration contract instead of silently reopening it.
-const ALLOW_OPEN_REGISTRATION = CLINICAL_RELEASE_POLICY.professionId === 'physio'
-  ? capabilityConfigured('ALLOW_OPEN_REGISTRATION')
-  : capabilityEnabled('ALLOW_OPEN_REGISTRATION');
+// This shared predicate also publishes public_settings.registration. Keeping
+// enforcement and publication in one module prevents the browser from
+// presenting a self-service path which this process will refuse.
+const ALLOW_OPEN_REGISTRATION = openRegistrationAvailable(
+  process.env,
+  CLINICAL_RELEASE_POLICY.professionId,
+);
 // The sole test-adapter election occurs at process composition. The installed
 // bag can exist only under NODE_ENV=test + SELFTEST=1; production receives an
 // empty bag and the sealed image omits the adapter module that installs it.
@@ -3060,6 +3064,8 @@ function handlePublicSettings(req, res) {
   //   and lock out all active users.
   // - capabilities: the runtime feature posture, mirrored from the same
   //   predicates the endpoints enforce (server/capabilities.mjs).
+  // - registration: the coarse public sign-up posture, mirrored from the
+  //   same endpoint predicate and safe to disclose before authentication.
   //   transcription_enabled is retained verbatim as the legacy raw-switch
   //   alias — a bundle built before this block existed must keep working
   //   unchanged, and a bundle built after it must treat an absent block as
@@ -3092,6 +3098,10 @@ function handlePublicSettings(req, res) {
         status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
         effective_date: process.env.LEGAL_EFFECTIVE_DATE || null,
       },
+      registration: publicRegistrationPosture(
+        process.env,
+        CLINICAL_RELEASE_POLICY.professionId,
+      ),
       capabilities: capabilitiesForCaller,
     },
   });

@@ -43,8 +43,11 @@ Controls whether a new practitioner can create their own account without an exis
 | `server/index.mjs` | POST /api/apps/:appId/auth/register | 403 "self-registration is disabled for this deployment" |
 | `server/index.mjs` | POST /api/apps/:appId/auth/verify-otp | 403 "account verification is disabled for this deployment" |
 | `server/index.mjs` | POST /api/apps/:appId/auth/resend-otp | 403 "account verification is disabled for this deployment" |
+| `server/capabilities.mjs` | GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture) | public_settings.registration is published as { mode: "invitation_only", open: false }. |
 
-_No client-side detector: Registration is a full-page auth flow rather than an InvokeLLM/ExtractDataFromUploadedFile call site; a marker-based client detector would find nothing meaningful to count. The server-gate table above is the complete blast-radius record for this flag._
+_No client-side detector: Registration is a full-page auth flow rather than an InvokeLLM/ExtractDataFromUploadedFile call site; src/lib/registrationAccess.js is the one shared client decision helper, so a marker-based detector would find nothing meaningful to count. The server-gate table above is the complete blast-radius record for this flag._
+
+**Reported to the browser via:** GET /api/apps/public/prod/public-settings/by-id/:appId → public_settings.registration (mirrors the same profession-specific server gate)
 
 ### Referral document extraction (`DOCUMENT_EXTRACTION_ENABLED`)
 

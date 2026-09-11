@@ -14,7 +14,9 @@ const exactSharedContracts = new Set([
   'github-artifact-admission.test.mjs',
   'production-startup.test.mjs',
   'public-capabilities-contract.test.mjs',
+  'registration-posture-contract.test.mjs',
   'signup-contract.test.mjs',
+  'signup-ux-contract.test.mjs',
   'stripe-webhook-event-idempotency.test.mjs',
 ]);
 const requiredPhysioContracts = new Set([

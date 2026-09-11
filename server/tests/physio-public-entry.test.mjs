@@ -3,6 +3,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 
+import {
+  REGISTRATION_ACCESS_MODES,
+  resolveRegistrationAccessMode,
+} from '../../src/lib/registrationAccess.js';
+
 const root = path.resolve(import.meta.dirname, '..', '..');
 const read = (relativePath) => readFileSync(path.join(root, relativePath), 'utf8');
 
@@ -37,11 +42,45 @@ test('Physio host metadata is indexable and describes the dedicated vertical', (
   assert.doesNotMatch(html, /noindex|nofollow|noarchive/i);
 });
 
-test('registration and shared authentication chrome use the active profession identity', () => {
+test('registration and shared authentication chrome preserve EP and Physio separation', () => {
   const register = read('src/pages/Register.jsx');
   assert.match(register, /buildTimeProfession\.productName/);
   assert.match(register, /Invitation-only access/);
-  assert.doesNotMatch(register, /auth\.register|Create your account/);
+  assert.match(register, /base44\.auth\.register/);
+  assert.match(register, /<OpenRegistration \/>/);
+  assert.match(register, /<InvitationOnlyRegistration \/>/);
+
+  assert.equal(
+    resolveRegistrationAccessMode('exercise-physiology', {
+      public_settings: { registration: { mode: 'open', open: true } },
+    }),
+    REGISTRATION_ACCESS_MODES.OPEN,
+  );
+  assert.equal(
+    resolveRegistrationAccessMode('exercise-physiology', {
+      public_settings: { registration: { mode: 'invitation_only', open: false } },
+    }),
+    REGISTRATION_ACCESS_MODES.UNAVAILABLE,
+  );
+  assert.equal(
+    resolveRegistrationAccessMode('physio', {
+      public_settings: { registration: { mode: 'open', open: true } },
+    }),
+    REGISTRATION_ACCESS_MODES.INVITATION_ONLY,
+  );
+
+  const app = read('src/App.jsx');
+  assert.match(app, /buildTimeProfession\.id === 'physio'/);
+  assert.match(app, /path="\/accept-invitation"/);
+  assert.match(app, /<Navigate to="\/register" replace \/>/);
+
+  const login = read('src/pages/Login.jsx');
+  assert.match(login, /resolveRegistrationAccessMode/);
+  assert.match(login, /Create your account/);
+
+  const acceptInvitation = read('src/pages/AcceptInvitation.jsx');
+  assert.match(acceptInvitation, /buildTimeProfession\.productName/);
+  assert.doesNotMatch(acceptInvitation, /AssessSuite Physio secure access/);
   assert.match(read('src/components/AuthLayout.jsx'), /buildTimeProfession\.shortName/);
 });
 

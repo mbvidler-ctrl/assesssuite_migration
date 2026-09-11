@@ -6,13 +6,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
+import { useAuth } from "@/lib/AuthContext";
+import {
+  REGISTRATION_ACCESS_MODES,
+  resolveRegistrationAccessMode,
+} from "@/lib/registrationAccess";
+import { buildTimeProfession } from "@/lib/profession";
 import { createPageUrl } from "@/utils";
 
 export default function Login() {
+  const { appPublicSettings } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const registrationMode = resolveRegistrationAccessMode(
+    buildTimeProfession.id,
+    appPublicSettings,
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,17 +44,24 @@ export default function Login() {
     }
   };
 
-  const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", "/");
-  };
-
   return (
     <AuthLayout
       icon={LogIn}
       title="Welcome back"
       subtitle="Log in to your account"
       footer={
-        <>Access is invitation-only. Ask a practice owner to invite you.</>
+        registrationMode === REGISTRATION_ACCESS_MODES.OPEN ? (
+          <>
+            New to {buildTimeProfession.productName}?{" "}
+            <Link to="/register" className="text-primary font-medium hover:underline">
+              Create your account
+            </Link>
+          </>
+        ) : registrationMode === REGISTRATION_ACCESS_MODES.INVITATION_ONLY ? (
+          <>Access is invitation-only. Ask a practice owner to invite you.</>
+        ) : (
+          <>New registration is currently unavailable. Existing members can sign in or reset their password.</>
+        )
       }
     >
       {/* Google SSO removed for the private demo: the local backend has no
