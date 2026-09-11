@@ -23,13 +23,13 @@ test('registration OTP resend provides confirmation, delivery guidance, and a co
   assert.match(registerSource, /Verification code request received\./);
   assert.match(registerSource, /spam or junk folder/i);
   assert.match(registerSource, /maskEmailDestination\(email\)/);
-  assert.match(registerSource, /`Resend code in \$\{resendCooldown\}s`/);
+  assert.match(registerSource, /"Resend code in " \+ resendCooldown \+ "s"/);
 });
 
 test('resend clears stale feedback before making another request', () => {
   const handler = registerSource.slice(
     registerSource.indexOf('const handleResendOtp'),
-    registerSource.indexOf('const handleGoogle'),
+    registerSource.indexOf('if (otpSent)'),
   );
   assert.match(handler, /setError\(""\)/);
   assert.match(handler, /setResendConfirmation\(""\)/);
@@ -37,4 +37,13 @@ test('resend clears stale feedback before making another request', () => {
     handler.indexOf('setError("")') < handler.indexOf('base44.auth.resendOtp(email)'),
     'stale errors must clear before the resend request',
   );
+});
+
+test('registration selects an explicit EP open flow and a separate Physio invitation flow', () => {
+  assert.match(registerSource, /resolveRegistrationAccessMode/);
+  assert.match(registerSource, /REGISTRATION_ACCESS_MODES\.OPEN/);
+  assert.match(registerSource, /<OpenRegistration \/>/);
+  assert.match(registerSource, /<InvitationOnlyRegistration \/>/);
+  assert.match(registerSource, /base44\.auth\.register/);
+  assert.match(registerSource, /base44\.auth\.verifyOtp/);
 });

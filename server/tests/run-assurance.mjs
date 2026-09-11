@@ -14,6 +14,8 @@ const suites = [
   'referral-commit.test.mjs',
   'referral-reviewed-age-gate.test.mjs',
   'signup-contract.test.mjs',
+  'signup-ux-contract.test.mjs',
+  'registration-posture-contract.test.mjs',
   'usage-analytics-routes.test.mjs',
   'profile-setup-access.test.mjs',
   'profile-founder-organization.test.mjs',

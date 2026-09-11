@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { appParams } from "@/lib/app-params";
+import { buildTimeProfession } from "@/lib/profession";
 
 function authEndpoint(action) {
   const base = String(appParams.serverUrl || "").replace(/\/$/, "");
@@ -86,7 +87,9 @@ export default function AcceptInvitation() {
     <AuthLayout
       icon={KeyRound}
       title="Accept your invitation"
-      subtitle={invitation ? `${invitation.organization.name} · ${invitation.role}` : "AssessSuite Physio secure access"}
+      subtitle={invitation
+        ? invitation.organization.name + " · " + invitation.role
+        : buildTimeProfession.productName + " secure access"}
       footer={<Link to="/login" className="text-primary font-medium hover:underline">Return to sign in</Link>}
     >
       {status === "loading" && (

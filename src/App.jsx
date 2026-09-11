@@ -98,7 +98,9 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/accept-invitation" element={<AcceptInvitation />} />
+      {buildTimeProfession.id === 'physio'
+        ? <Route path="/accept-invitation" element={<AcceptInvitation />} />
+        : <Route path="/accept-invitation" element={<Navigate to="/register" replace />} />}
       <Route path="/Paywall" element={<Navigate to="/PaymentRequired" replace />} />
       <Route path="/PaymentRequired" element={<PaymentRequired />} />
       {/* Preserve billing-portal sessions created before the migrated route

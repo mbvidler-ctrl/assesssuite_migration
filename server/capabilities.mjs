@@ -19,7 +19,7 @@
 // exposing it here. The chokepoint audit in scripts/flag-manifest.mjs fails
 // this file if it ever reads process.env.<FLAG> directly again.
 
-import { capabilityEnabled, selftestMockAllowed } from './capabilityFlags.mjs';
+import { capabilityConfigured, capabilityEnabled, selftestMockAllowed } from './capabilityFlags.mjs';
 import { llmEnabled } from './llm.mjs';
 
 export const CAPABILITY_CONTRACT_VERSION = 1;
@@ -77,6 +77,36 @@ export function transcriptionPosture(environment = process.env) {
 /** Server-level switch only; per-user eligibility/acceptance/age gates are separate and authoritative. */
 export function documentExtractionAvailable(environment = process.env) {
   return capabilityEnabled('DOCUMENT_EXTRACTION_ENABLED', environment);
+}
+
+/**
+ * The public registration posture must be derived from precisely the same
+ * predicate that the auth endpoints enforce. Physio intentionally does not
+ * inherit SELFTEST's EP-friendly implied-on behaviour: its explicit switch
+ * remains authoritative so the restricted product cannot reopen in a test
+ * harness merely because the shared EP defaults are in effect.
+ */
+export function openRegistrationAvailable(
+  environment = process.env,
+  professionId = environment.PROFESSION || 'exercise-physiology',
+) {
+  return professionId === 'physio'
+    ? capabilityConfigured('ALLOW_OPEN_REGISTRATION', environment)
+    : capabilityEnabled('ALLOW_OPEN_REGISTRATION', environment);
+}
+
+/**
+ * Coarse, non-sensitive registration posture for unauthenticated clients.
+ * A bundle must receive an explicit affirmative response before it renders
+ * EP self-service sign-up; a missing or malformed block therefore fails
+ * closed on the client rather than presenting a form the server will refuse.
+ */
+export function publicRegistrationPosture(
+  environment = process.env,
+  professionId = environment.PROFESSION || 'exercise-physiology',
+) {
+  const open = openRegistrationAvailable(environment, professionId);
+  return { mode: open ? 'open' : 'invitation_only', open };
 }
 
 /**
