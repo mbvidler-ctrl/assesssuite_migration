@@ -1,0 +1,41 @@
+/* The live application's base stylesheet (CSS variables and Tailwind layers)
+   is imported unchanged so the reused primitives render as they do in
+   AssessSuite. Demo-specific rules follow. */
+@import '@/index.css';
+
+.demo-document-frame {
+  width: 100%;
+  min-height: 70vh;
+  border: 1px solid hsl(var(--border));
+  background: white;
+}
+
+.demo-facts-table th,
+.demo-facts-table td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.8rem;
+}
+
+.demo-facts-table th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.demo-kv th {
+  width: 34%;
+  text-align: left;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  padding: 0.25rem 0.5rem 0.25rem 0;
+  vertical-align: top;
+  font-size: 0.8rem;
+}
+
+.demo-kv td {
+  padding: 0.25rem 0;
+  vertical-align: top;
+  font-size: 0.8rem;
+}
