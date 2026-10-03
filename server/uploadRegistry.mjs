@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { setImmediate as yieldToEventLoop } from 'node:timers/promises';
 
 import { capabilityEnabled } from './capabilityFlags.mjs';
 import {
@@ -20,6 +21,8 @@ const PHYSICAL_CLEANUP_GRACE_MS = 60 * 1000;
 const REGISTERING_TEMP_SUFFIX = '.registering';
 const PROVIDER_BLOCK_SUFFIX = '.provider-block';
 const HISTORICAL_ARTIFACT_RECONCILIATION_MAX_ENTRIES = 10_000;
+const UPLOAD_MAINTENANCE_BATCH_SIZE = 25;
+const AUDIT_MAINTENANCE_BATCH_SIZE = 100;
 const TRANSIENT_PROVIDER_BLOCKS = new Set();
 
 export function assertProductionUploadPolicyEnvironment(environment = process.env) {
@@ -593,114 +596,92 @@ function emptyHistoricalArtifactReconciliationResult() {
  * inaccessible to routes and is represented only by an aggregate review
  * count. No returned field contains a filename, identifier, path, or content.
  */
+function historicalRegistryAssociationQuery(db) {
+  return db.prepare(`
+    SELECT 1 AS present FROM upload_registry
+    WHERE id IN (?, ?) OR stored_name IN (?, ?)
+    LIMIT 1
+  `);
+}
+
+function reconcileHistoricalEntry({ entry, uploadsDir, nowMs, findRegistryAssociation, result }) {
+  result.examinedEntries += 1;
+  const artifact = classifyHistoricalManagedArtifact(entry.name);
+  if (!artifact) return;
+  result.managedCandidates += 1;
+  let filePath;
+  let stat;
+  try {
+    filePath = canonicalUploadPath(uploadsDir, entry.name);
+    stat = fs.lstatSync(filePath);
+  } catch {
+    result.partial += 1;
+    return;
+  }
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    result.preservedUnsafeType += 1;
+    return;
+  }
+  let registered;
+  try {
+    registered = Boolean(findRegistryAssociation.get(
+      artifact.uploadId, artifact.operationId, artifact.storedName, entry.name,
+    )?.present);
+  } catch {
+    result.partial += 1;
+    return;
+  }
+  if (registered) {
+    result.preservedRegistered += 1;
+    return;
+  }
+  if (artifact.kind === 'final') {
+    result.rowlessFinalReviewRequired += 1;
+    return;
+  }
+  const ageMs = nowMs - stat.mtimeMs;
+  if (!Number.isFinite(ageMs) || ageMs < UPLOAD_POLICY.historicalArtifactReconciliationAgeMs) {
+    result.preservedFresh += 1;
+    return;
+  }
+  if (artifact.kind === 'provider-block' && stat.size !== 0) {
+    result.preservedNonemptyProviderBlock += 1;
+    return;
+  }
+  try {
+    // Re-check identity immediately before unlinking; no yield occurs inside
+    // this complete per-entry safety decision.
+    const current = fs.lstatSync(filePath);
+    if (
+      !current.isFile() || current.isSymbolicLink() ||
+      current.dev !== stat.dev || current.ino !== stat.ino ||
+      current.size !== stat.size || current.mtimeMs !== stat.mtimeMs
+    ) {
+      result.partial += 1;
+      return;
+    }
+    fs.unlinkSync(filePath);
+    result.removed += 1;
+    if (artifact.kind === 'predecessor-pending') result.removedPredecessorPending += 1;
+    else if (artifact.kind === 'registering') result.removedRegistering += 1;
+    else result.removedProviderBlocks += 1;
+  } catch {
+    result.partial += 1;
+  }
+}
+
 export function reconcileHistoricalRowlessUploadArtifacts({ db, uploadsDir, now = new Date() }) {
   const result = emptyHistoricalArtifactReconciliationResult();
   const nowMs = new Date(now).getTime();
-  if (!Number.isFinite(nowMs)) {
-    result.partial += 1;
-    return Object.freeze(result);
-  }
-
-  let findRegistryAssociation;
-  try {
-    findRegistryAssociation = db.prepare(`
-      SELECT 1 AS present
-      FROM upload_registry
-      WHERE id IN (?, ?) OR stored_name IN (?, ?)
-      LIMIT 1
-    `);
-  } catch {
-    result.partial += 1;
-    return Object.freeze(result);
-  }
-
   let directory;
   try {
+    if (!Number.isFinite(nowMs)) throw new Error('invalid maintenance cutoff');
+    const findRegistryAssociation = historicalRegistryAssociationQuery(db);
     directory = fs.opendirSync(uploadsDir);
-  } catch {
-    result.partial += 1;
-    return Object.freeze(result);
-  }
-
-  try {
     while (result.examinedEntries < HISTORICAL_ARTIFACT_RECONCILIATION_MAX_ENTRIES) {
       const entry = directory.readSync();
       if (!entry) break;
-      result.examinedEntries += 1;
-      const artifact = classifyHistoricalManagedArtifact(entry.name);
-      if (!artifact) continue;
-      result.managedCandidates += 1;
-
-      let filePath;
-      let stat;
-      try {
-        filePath = canonicalUploadPath(uploadsDir, entry.name);
-        stat = fs.lstatSync(filePath);
-      } catch {
-        result.partial += 1;
-        continue;
-      }
-      if (!stat.isFile() || stat.isSymbolicLink()) {
-        result.preservedUnsafeType += 1;
-        continue;
-      }
-
-      let registered;
-      try {
-        registered = Boolean(
-          findRegistryAssociation.get(
-            artifact.uploadId,
-            artifact.operationId,
-            artifact.storedName,
-            entry.name,
-          )?.present,
-        );
-      } catch {
-        result.partial += 1;
-        continue;
-      }
-      if (registered) {
-        result.preservedRegistered += 1;
-        continue;
-      }
-      if (artifact.kind === 'final') {
-        result.rowlessFinalReviewRequired += 1;
-        continue;
-      }
-
-      const ageMs = nowMs - stat.mtimeMs;
-      if (!Number.isFinite(ageMs) || ageMs < UPLOAD_POLICY.historicalArtifactReconciliationAgeMs) {
-        result.preservedFresh += 1;
-        continue;
-      }
-      if (artifact.kind === 'provider-block' && stat.size !== 0) {
-        result.preservedNonemptyProviderBlock += 1;
-        continue;
-      }
-
-      try {
-        // Re-check immediately before unlinking. A changed or replaced path is
-        // retained for the next pass/manual review instead of being acted on.
-        const current = fs.lstatSync(filePath);
-        if (
-          !current.isFile() ||
-          current.isSymbolicLink() ||
-          current.dev !== stat.dev ||
-          current.ino !== stat.ino ||
-          current.size !== stat.size ||
-          current.mtimeMs !== stat.mtimeMs
-        ) {
-          result.partial += 1;
-          continue;
-        }
-        fs.unlinkSync(filePath);
-        result.removed += 1;
-        if (artifact.kind === 'predecessor-pending') result.removedPredecessorPending += 1;
-        else if (artifact.kind === 'registering') result.removedRegistering += 1;
-        else result.removedProviderBlocks += 1;
-      } catch {
-        result.partial += 1;
-      }
+      reconcileHistoricalEntry({ entry, uploadsDir, nowMs, findRegistryAssociation, result });
     }
     if (result.examinedEntries === HISTORICAL_ARTIFACT_RECONCILIATION_MAX_ENTRIES) {
       result.truncated = Boolean(directory.readSync());
@@ -708,10 +689,77 @@ export function reconcileHistoricalRowlessUploadArtifacts({ db, uploadsDir, now 
   } catch {
     result.partial += 1;
   } finally {
-    try { directory.closeSync(); } catch { result.partial += 1; }
+    if (directory) {
+      try { directory.closeSync(); } catch { result.partial += 1; }
+    }
   }
-
   return Object.freeze(result);
+}
+
+// Production keeps one advancing iterator across batches and hourly passes.
+// The synchronous compatibility export above remains a single bounded pass.
+export function createHistoricalUploadArtifactReconciler({ db, uploadsDir }) {
+  let directory = null;
+  let lookahead = null;
+  let closed = false;
+  let running = null;
+  function closeDirectory() {
+    const current = directory;
+    directory = null;
+    lookahead = null;
+    if (current) current.closeSync();
+  }
+  async function scan({ now = new Date(), yieldToEventLoop: yieldBatch = yieldToEventLoop } = {}) {
+    const result = emptyHistoricalArtifactReconciliationResult();
+    if (closed) return Object.freeze(result);
+    const nowMs = new Date(now).getTime();
+    try {
+      if (!Number.isFinite(nowMs)) throw new Error('invalid maintenance cutoff');
+      const findRegistryAssociation = historicalRegistryAssociationQuery(db);
+      directory ||= fs.opendirSync(uploadsDir);
+      while (!closed && result.examinedEntries < HISTORICAL_ARTIFACT_RECONCILIATION_MAX_ENTRIES) {
+        let batchCount = 0;
+        while (batchCount < UPLOAD_MAINTENANCE_BATCH_SIZE &&
+               result.examinedEntries < HISTORICAL_ARTIFACT_RECONCILIATION_MAX_ENTRIES) {
+          const entry = lookahead || directory.readSync();
+          lookahead = null;
+          if (!entry) {
+            closeDirectory();
+            return Object.freeze(result);
+          }
+          reconcileHistoricalEntry({ entry, uploadsDir, nowMs, findRegistryAssociation, result });
+          batchCount += 1;
+        }
+        // Retain the lookahead too: reading it to report truncation must not
+        // silently lose the next candidate at an hourly pass boundary.
+        lookahead = directory.readSync();
+        if (!lookahead) {
+          closeDirectory();
+          return Object.freeze(result);
+        }
+        if (result.examinedEntries === HISTORICAL_ARTIFACT_RECONCILIATION_MAX_ENTRIES) {
+          result.truncated = true;
+          break;
+        }
+        await yieldBatch();
+      }
+    } catch {
+      result.partial += 1;
+      try { closeDirectory(); } catch { result.partial += 1; }
+    }
+    return Object.freeze(result);
+  }
+  return {
+    runPass(options) {
+      if (running) return running;
+      running = scan(options).finally(() => { running = null; });
+      return running;
+    },
+    close() {
+      closed = true;
+      closeDirectory();
+    },
+  };
 }
 
 export function createUploadRegistry(db, { uploadsDir }) {
@@ -881,17 +929,19 @@ export function createUploadRegistry(db, { uploadsDir }) {
     TRANSIENT_PROVIDER_BLOCKS.delete(id);
   }
 
-  function reconcileInterruptedRegistrations({ now = new Date() } = {}) {
+  function interruptedRegistrationBatch({ now, cursor = null }) {
+    const cutoff = new Date(now).toISOString();
     const rows = db.prepare(`
       SELECT * FROM upload_registry
-      WHERE lifecycle_state = 'registering' AND is_legacy = 0
-      ORDER BY created_at ASC
-    `).all();
+      WHERE lifecycle_state = 'registering' AND is_legacy = 0 AND created_at <= ?
+        ${cursor ? 'AND (created_at > ? OR (created_at = ? AND id > ?))' : ''}
+      ORDER BY created_at ASC, id ASC LIMIT ${UPLOAD_MAINTENANCE_BATCH_SIZE}
+    `).all(cutoff, ...(cursor ? [cursor.created_at, cursor.created_at, cursor.id] : []));
     const result = { examined: rows.length, removed: 0, partial: 0 };
     for (const row of rows) {
-      const finalPath = canonicalUploadPath(uploadsDir, row.stored_name);
-      const tempPath = canonicalUploadPath(uploadsDir, registeringTempName(row.stored_name));
       try {
+        const finalPath = canonicalUploadPath(uploadsDir, row.stored_name);
+        const tempPath = canonicalUploadPath(uploadsDir, registeringTempName(row.stored_name));
         removeRegularFileIfPresent(tempPath);
         removeRegularFileIfPresent(finalPath);
         removeProviderBlock(row.id);
@@ -921,10 +971,10 @@ export function createUploadRegistry(db, { uploadsDir }) {
             metadata: { state_from: 'registering', state_to: 'deleted' },
             now,
           });
-          result.removed += 1;
         }
         db.exec('COMMIT');
         transactionStarted = false;
+        result.removed += Number(changed.changes);
       } catch {
         if (transactionStarted) {
           try { db.exec('ROLLBACK'); } catch { /* retry on the next maintenance pass */ }
@@ -932,7 +982,33 @@ export function createUploadRegistry(db, { uploadsDir }) {
         result.partial += 1;
       }
     }
-    result.historicalArtifacts = reconcileHistoricalRowlessUploadArtifacts({ db, uploadsDir, now });
+    return { result, cursor: rows.at(-1) || cursor };
+  }
+
+  function reconcileInterruptedRegistrations({ now = new Date() } = {}) {
+    const cutoff = new Date(now);
+    const result = { examined: 0, removed: 0, partial: 0 };
+    let cursor = null;
+    while (true) {
+      const batch = interruptedRegistrationBatch({ now: cutoff, cursor });
+      for (const key of Object.keys(result)) result[key] += batch.result[key];
+      cursor = batch.cursor;
+      if (batch.result.examined < UPLOAD_MAINTENANCE_BATCH_SIZE) break;
+    }
+    return result;
+  }
+
+  async function drainInterruptedRegistrations({ now = new Date(), yieldToEventLoop: yieldBatch = yieldToEventLoop } = {}) {
+    const cutoff = new Date(now);
+    const result = { examined: 0, removed: 0, partial: 0 };
+    let cursor = null;
+    while (true) {
+      const batch = interruptedRegistrationBatch({ now: cutoff, cursor });
+      for (const key of Object.keys(result)) result[key] += batch.result[key];
+      cursor = batch.cursor;
+      if (batch.result.examined < UPLOAD_MAINTENANCE_BATCH_SIZE) break;
+      await yieldBatch();
+    }
     return result;
   }
 
@@ -1788,7 +1864,7 @@ export function createUploadRegistry(db, { uploadsDir }) {
   // Startup reconciliation runs before the registry is exposed to any route.
   // A scheduled caller may invoke the same idempotent operation later if a
   // runtime filesystem fault left a row in the denied registering state.
-  reconcileInterruptedRegistrations();
+  interruptedRegistrationBatch({ now: new Date() });
 
   return {
     getById,
@@ -1807,6 +1883,7 @@ export function createUploadRegistry(db, { uploadsDir }) {
     quarantineReviewedUnder13,
     isProviderBlocked,
     reconcileInterruptedRegistrations,
+    drainInterruptedRegistrations,
     reconcileHistoricalRowlessUploadArtifacts: ({ now = new Date() } = {}) =>
       reconcileHistoricalRowlessUploadArtifacts({ db, uploadsDir, now }),
     resolveUploadDisposition,
@@ -2064,7 +2141,7 @@ function isolateCleanupCandidate({ db, row, now, reasonCode, references }) {
   }
 }
 
-export function cleanupExpiredUploads({ db, uploadsDir, now = new Date(), dryRun = false }) {
+function cleanupExpiredUploadBatch({ db, uploadsDir, now, dryRun, cursor = null }) {
   const nowIso = new Date(now).toISOString();
   const candidates = db.prepare(`
     SELECT * FROM upload_registry
@@ -2075,8 +2152,9 @@ export function cleanupExpiredUploads({ db, uploadsDir, now = new Date(), dryRun
       AND lifecycle_state IN ('temporary', 'processing', 'review-pending', 'expired')
       AND expires_at IS NOT NULL
       AND expires_at <= ?
-    ORDER BY expires_at ASC
-  `).all(nowIso);
+      ${cursor ? 'AND (expires_at > ? OR (expires_at = ? AND id > ?))' : ''}
+    ORDER BY expires_at ASC, id ASC LIMIT ${UPLOAD_MAINTENANCE_BATCH_SIZE}
+  `).all(nowIso, ...(cursor ? [cursor.expires_at, cursor.expires_at, cursor.id] : []));
   const result = {
     examined: candidates.length,
     removed: 0,
@@ -2086,116 +2164,205 @@ export function cleanupExpiredUploads({ db, uploadsDir, now = new Date(), dryRun
     partial: 0,
     dryRun: Boolean(dryRun),
   };
-  for (const row of candidates) {
-    if (row.lifecycle_state === 'bound' || row.is_legacy || row.bound_entity_id) {
-      result.retained += 1;
-      continue;
-    }
-    const references = scanActiveUploadReferences(db, { ...row, id: row.id });
-    if (!references.complete || references.referenceCount > 0) {
-      result.retained += 1;
-      if (!references.complete) result.partial += 1;
-      if (!dryRun) {
-        isolateCleanupCandidate({
-          db,
-          row,
-          now,
-          reasonCode: references.complete ? 'cleanup_reference_present' : 'cleanup_reference_scan_incomplete',
-          references,
-        });
-        result.isolated += 1;
-      }
-      continue;
-    }
-    let filePath;
+  for (const candidate of candidates) {
     try {
-      filePath = canonicalUploadPath(uploadsDir, row.stored_name);
-    } catch {
-      result.partial += 1;
-      result.retained += 1;
-      if (!dryRun) {
-        isolateCleanupCandidate({
-          db,
-          row,
-          now,
-          reasonCode: 'cleanup_path_validation_failed',
-          references,
-        });
-        result.isolated += 1;
+      // A preceding batch yielded to routes. Re-read the complete eligibility
+      // decision, then finish this upload's scan, unlink and update synchronously.
+      const row = db.prepare('SELECT * FROM upload_registry WHERE id = ?').get(candidate.id);
+      if (!row || row.is_legacy || row.bound_at || row.bound_entity_type || row.bound_entity_id ||
+          !['temporary', 'processing', 'review-pending', 'expired'].includes(row.lifecycle_state) ||
+          !row.expires_at || row.expires_at > nowIso) {
+        result.retained += 1;
+        continue;
       }
-      continue;
-    }
-    const exists = fs.existsSync(filePath);
-    if (!dryRun) {
+      const references = scanActiveUploadReferences(db, { ...row, id: row.id });
+      if (!references.complete || references.referenceCount > 0) {
+        result.retained += 1;
+        if (!references.complete) result.partial += 1;
+        if (!dryRun) {
+          isolateCleanupCandidate({
+            db,
+            row,
+            now,
+            reasonCode: references.complete ? 'cleanup_reference_present' : 'cleanup_reference_scan_incomplete',
+            references,
+          });
+          result.isolated += 1;
+        }
+        continue;
+      }
+      let filePath;
       try {
-        if (exists) removeRegularFileIfPresent(filePath);
-        removeRegularFileIfPresent(canonicalUploadPath(uploadsDir, providerBlockName(row.id)));
-        TRANSIENT_PROVIDER_BLOCKS.delete(row.id);
+        filePath = canonicalUploadPath(uploadsDir, row.stored_name);
       } catch {
         result.partial += 1;
         result.retained += 1;
-        isolateCleanupCandidate({
-          db,
-          row,
-          now,
-          reasonCode: 'physical_cleanup_failed',
-          references,
-        });
-        result.isolated += 1;
+        if (!dryRun) {
+          isolateCleanupCandidate({
+            db,
+            row,
+            now,
+            reasonCode: 'cleanup_path_validation_failed',
+            references,
+          });
+          result.isolated += 1;
+        }
         continue;
       }
-      db.prepare(`
-        UPDATE upload_registry
-        SET lifecycle_state = 'deleted', deleted_at = ?, original_name = '[deleted]'
-        WHERE id = ? AND is_legacy = 0 AND bound_at IS NULL
-          AND lifecycle_state IN ('temporary', 'processing', 'review-pending', 'expired')
-      `).run(nowIso, row.id);
-      const auditExpiry = new Date(new Date(now).getTime() + UPLOAD_POLICY.auditRetentionMs).toISOString();
-      db.prepare(`
-        INSERT INTO upload_audit
-          (id, upload_id, org_id, actor_user_id, event_type, outcome, metadata_json, created_at, expires_at, legal_hold)
-        VALUES (?, ?, ?, ?, 'upload_cleanup', ?, ?, ?, ?, ?)
-      `).run(
-        randomUUID(),
-        row.id,
-        row.org_id,
-        'system:lifecycle',
-        exists ? 'removed' : 'already_missing',
-        JSON.stringify({ dry_run: false, state_from: row.lifecycle_state, state_to: 'deleted' }),
-        nowIso,
-        auditExpiry,
-        capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD') ? 1 : 0,
-      );
+      const exists = fs.existsSync(filePath);
+      if (!dryRun) {
+        try {
+          if (exists) removeRegularFileIfPresent(filePath);
+          removeRegularFileIfPresent(canonicalUploadPath(uploadsDir, providerBlockName(row.id)));
+          TRANSIENT_PROVIDER_BLOCKS.delete(row.id);
+        } catch {
+          result.partial += 1;
+          result.retained += 1;
+          isolateCleanupCandidate({
+            db,
+            row,
+            now,
+            reasonCode: 'physical_cleanup_failed',
+            references,
+          });
+          result.isolated += 1;
+          continue;
+        }
+        let transactionStarted = false;
+        try {
+          db.exec('BEGIN IMMEDIATE');
+          transactionStarted = true;
+          db.prepare(`
+            UPDATE upload_registry
+            SET lifecycle_state = 'deleted', deleted_at = ?, original_name = '[deleted]'
+            WHERE id = ? AND is_legacy = 0 AND bound_at IS NULL
+              AND bound_entity_type IS NULL AND bound_entity_id IS NULL
+              AND lifecycle_state IN ('temporary', 'processing', 'review-pending', 'expired')
+              AND expires_at IS NOT NULL AND expires_at <= ?
+          `).run(nowIso, row.id, nowIso);
+          const auditExpiry = new Date(new Date(now).getTime() + UPLOAD_POLICY.auditRetentionMs).toISOString();
+          db.prepare(`
+            INSERT INTO upload_audit
+              (id, upload_id, org_id, actor_user_id, event_type, outcome, metadata_json, created_at, expires_at, legal_hold)
+            VALUES (?, ?, ?, ?, 'upload_cleanup', ?, ?, ?, ?, ?)
+          `).run(
+            randomUUID(),
+            row.id,
+            row.org_id,
+            'system:lifecycle',
+            exists ? 'removed' : 'already_missing',
+            JSON.stringify({ dry_run: false, state_from: row.lifecycle_state, state_to: 'deleted' }),
+            nowIso,
+            auditExpiry,
+            capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD') ? 1 : 0,
+          );
+          db.exec('COMMIT');
+          transactionStarted = false;
+        } catch (error) {
+          if (transactionStarted) {
+            try { db.exec('ROLLBACK'); } catch { /* keep the row for retry */ }
+          }
+          throw error;
+        }
+      }
+      if (exists) result.removed += 1;
+      else result.missing += 1;
+    } catch {
+      // Advance the cursor even on a failed candidate, leaving durable work
+      // for retry instead of starving every later upload in this pass.
+      result.partial += 1;
+      result.retained += 1;
     }
-    if (exists) result.removed += 1;
-    else result.missing += 1;
+  }
+  return { result, cursor: candidates.at(-1) || cursor };
+}
+
+function emptyExpiredUploadCleanupResult(dryRun) {
+  return { examined: 0, removed: 0, missing: 0, retained: 0, isolated: 0, partial: 0, dryRun: Boolean(dryRun) };
+}
+
+function addExpiredUploadCleanupBatch(result, batch) {
+  for (const key of ['examined', 'removed', 'missing', 'retained', 'isolated', 'partial']) result[key] += batch[key];
+}
+
+export function cleanupExpiredUploads({ db, uploadsDir, now = new Date(), dryRun = false }) {
+  const cutoff = new Date(now);
+  const result = emptyExpiredUploadCleanupResult(dryRun);
+  let cursor = null;
+  while (true) {
+    const batch = cleanupExpiredUploadBatch({ db, uploadsDir, now: cutoff, dryRun, cursor });
+    addExpiredUploadCleanupBatch(result, batch.result);
+    cursor = batch.cursor;
+    if (batch.result.examined < UPLOAD_MAINTENANCE_BATCH_SIZE) break;
   }
   return result;
 }
 
-export function cleanupExpiredUploadAudit({ db, now = new Date(), dryRun = false }) {
-  if (capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD')) return { removed: 0, dryRun: Boolean(dryRun), legalHold: true };
-  const nowIso = new Date(now).toISOString();
-  const count = Number(
-    db.prepare('SELECT COUNT(*) AS n FROM upload_audit WHERE legal_hold = 0 AND expires_at <= ?').get(nowIso)?.n || 0,
-  );
-  const usageCutoff = new Date(new Date(now).getTime() - UPLOAD_POLICY.auditRetentionMs).toISOString();
-  const usageCount = Number(
-    db.prepare('SELECT COUNT(*) AS n FROM extraction_usage WHERE created_at <= ?').get(usageCutoff)?.n || 0,
-  );
-  const registryCount = Number(
-    db.prepare(`
-      SELECT COUNT(*) AS n FROM upload_registry
-      WHERE lifecycle_state = 'deleted' AND deleted_at IS NOT NULL AND deleted_at <= ?
-    `).get(usageCutoff)?.n || 0,
-  );
-  if (!dryRun) {
-    db.prepare('DELETE FROM upload_audit WHERE legal_hold = 0 AND expires_at <= ?').run(nowIso);
-    db.prepare('DELETE FROM extraction_usage WHERE created_at <= ?').run(usageCutoff);
-    db.prepare(`
-      DELETE FROM upload_registry
-      WHERE lifecycle_state = 'deleted' AND deleted_at IS NOT NULL AND deleted_at <= ?
-    `).run(usageCutoff);
+export async function cleanupExpiredUploadsAsync({
+  db, uploadsDir, now = new Date(), dryRun = false, yieldToEventLoop: yieldBatch = yieldToEventLoop,
+}) {
+  const cutoff = new Date(now);
+  const result = emptyExpiredUploadCleanupResult(dryRun);
+  let cursor = null;
+  while (true) {
+    const batch = cleanupExpiredUploadBatch({ db, uploadsDir, now: cutoff, dryRun, cursor });
+    addExpiredUploadCleanupBatch(result, batch.result);
+    cursor = batch.cursor;
+    if (batch.result.examined < UPLOAD_MAINTENANCE_BATCH_SIZE) break;
+    await yieldBatch();
   }
-  return { removed: count + usageCount + registryCount, dryRun: Boolean(dryRun), legalHold: false };
+  return result;
+}
+
+function* expiredUploadAuditBatches({ db, now, dryRun }) {
+  const nowIso = new Date(now).toISOString();
+  const usageCutoff = new Date(new Date(now).getTime() - UPLOAD_POLICY.auditRetentionMs).toISOString();
+  const groups = [
+    { table: 'upload_audit', time: 'expires_at', where: 'legal_hold = 0', cutoff: nowIso },
+    { table: 'extraction_usage', time: 'created_at', where: '1 = 1', cutoff: usageCutoff },
+    { table: 'upload_registry', time: 'deleted_at', where: "lifecycle_state = 'deleted' AND deleted_at IS NOT NULL", cutoff: usageCutoff },
+  ];
+  for (const { table, time, where, cutoff } of groups) {
+    let cursor = null;
+    while (true) {
+      const cursorClause = cursor ? `AND (${time} > ? OR (${time} = ? AND id > ?))` : '';
+      const params = [cutoff, ...(cursor ? [cursor.timestamp, cursor.timestamp, cursor.id] : [])];
+      const selection = `SELECT id, ${time} AS timestamp FROM ${table}
+        WHERE ${where} AND ${time} <= ? ${cursorClause}
+        ORDER BY ${time} ASC, id ASC LIMIT ${AUDIT_MAINTENANCE_BATCH_SIZE}`;
+      const rows = db.prepare(selection).all(...params);
+      if (rows.length === 0) break;
+      let removed = rows.length;
+      if (!dryRun) {
+        // Works without SQLite's optional DELETE LIMIT extension. Selection
+        // and deletion form one synchronous batch, with no transaction/yield.
+        removed = Number(db.prepare(`DELETE FROM ${table} WHERE id IN (
+          SELECT id FROM ${table} WHERE ${where} AND ${time} <= ? ${cursorClause}
+          ORDER BY ${time} ASC, id ASC LIMIT ${AUDIT_MAINTENANCE_BATCH_SIZE}
+        )`).run(...params).changes);
+      }
+      cursor = rows.at(-1);
+      yield removed;
+      if (rows.length < AUDIT_MAINTENANCE_BATCH_SIZE) break;
+    }
+  }
+}
+
+export function cleanupExpiredUploadAudit({ db, now = new Date(), dryRun = false }) {
+  const result = { removed: 0, dryRun: Boolean(dryRun), legalHold: capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD') };
+  if (result.legalHold) return result;
+  for (const removed of expiredUploadAuditBatches({ db, now: new Date(now), dryRun })) result.removed += removed;
+  return result;
+}
+
+export async function cleanupExpiredUploadAuditAsync({
+  db, now = new Date(), dryRun = false, yieldToEventLoop: yieldBatch = yieldToEventLoop,
+}) {
+  const result = { removed: 0, dryRun: Boolean(dryRun), legalHold: capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD') };
+  if (result.legalHold) return result;
+  for (const removed of expiredUploadAuditBatches({ db, now: new Date(now), dryRun })) {
+    result.removed += removed;
+    await yieldBatch();
+  }
+  return result;
 }
