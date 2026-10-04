@@ -43,7 +43,7 @@ test('the referral browser harness pins an explicit EP build identity', () => {
 });
 
 test('dependency exceptions bind both advisory ID and reviewed package name', () => {
-  assert.match(dependencyAudit, /ALLOWLISTED_ADVISORIES\.get\(id\)/);
+  assert.match(dependencyAudit, /allowlistedAdvisories\.get\(id\)/);
   assert.match(dependencyAudit, /exception\?\.packages\.includes\(packageName\)/);
   assert.doesNotMatch(dependencyAudit, /if \(ALLOWLISTED_ADVISORIES\.has\(id\)\)/);
 });
