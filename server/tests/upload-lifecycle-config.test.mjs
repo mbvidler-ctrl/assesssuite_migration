@@ -197,8 +197,7 @@ test('startup reconciliation removes a final file renamed before activation and 
     assert.equal(repeated.examined, 0);
     assert.equal(repeated.removed, 0);
     assert.equal(repeated.partial, 0);
-    assert.equal(repeated.historicalArtifacts.removed, 0);
-    assert.equal(repeated.historicalArtifacts.rowlessFinalReviewRequired, 0);
+    assert.equal(Object.hasOwn(repeated, 'historicalArtifacts'), false);
   } finally {
     db.close();
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -367,12 +366,16 @@ test('historical rowless reconciliation is pattern-only, age-bounded, content-fr
 
     const startupPath = writeAt(names.startup, privateContentCanary, staleAt);
     const registry = createUploadRegistry(db, { uploadsDir });
-    assert.equal(fs.existsSync(startupPath), false, 'registry startup must invoke rowless reconciliation');
+    assert.equal(fs.existsSync(startupPath), true, 'registry startup leaves historical artifacts to their separate schedule');
     assert.equal(registry.getByStoredName(names.rowlessFinal), null);
     assert.equal(fs.existsSync(path.join(uploadsDir, names.rowlessFinal)), true);
     const recurring = registry.reconcileInterruptedRegistrations({ now });
-    assert.equal(recurring.historicalArtifacts.removed, 0);
-    assert.equal(recurring.historicalArtifacts.rowlessFinalReviewRequired, 2);
+    assert.equal(Object.hasOwn(recurring, 'historicalArtifacts'), false);
+    assert.equal(fs.existsSync(startupPath), true, 'minute recovery must not sweep historical artifacts');
+    const historical = registry.reconcileHistoricalRowlessUploadArtifacts({ now });
+    assert.equal(historical.removed, 1);
+    assert.equal(historical.rowlessFinalReviewRequired, 2);
+    assert.equal(fs.existsSync(startupPath), false);
   } finally {
     db.close();
     fs.rmSync(tempDir, { recursive: true, force: true });

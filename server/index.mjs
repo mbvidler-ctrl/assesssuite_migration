@@ -49,11 +49,16 @@ import {
   UPLOAD_POLICY,
   UploadError,
   canonicalUploadPath,
-  cleanupExpiredUploadAudit,
-  cleanupExpiredUploads,
+  cleanupExpiredUploadAuditAsync,
+  cleanupExpiredUploadsAsync,
+  createHistoricalUploadArtifactReconciler,
   createUploadRegistry,
   extractUploadIdsFromValue,
 } from './uploadRegistry.mjs';
+import {
+  createUploadMaintenanceScheduler,
+  uploadMaintenanceWarningAggregate,
+} from './uploadMaintenanceScheduler.mjs';
 import { verifyFileAccessToken } from './fileAccess.mjs';
 import { createFixedWindowRateLimiter } from './rateLimit.mjs';
 import {
@@ -218,24 +223,45 @@ const runtimeStatus = createRuntimeStatus({
   },
 });
 
-function runUploadLifecycleMaintenance() {
-  try {
-    uploadRegistry.reconcileInterruptedRegistrations();
-    cleanupExpiredUploads({ db, uploadsDir });
-    cleanupExpiredUploadAudit({ db });
-  } catch (error) {
-    console.error('[shim] upload lifecycle maintenance failed:', error?.code || 'maintenance_failed');
-  }
+function reportIncompleteUploadMaintenance(kind, result) {
+  const aggregate = uploadMaintenanceWarningAggregate(result);
+  if (aggregate) console.warn(`[shim] upload ${kind} maintenance incomplete:`, aggregate);
 }
-runUploadLifecycleMaintenance();
+const historicalUploadArtifacts = createHistoricalUploadArtifactReconciler({ db, uploadsDir });
+const uploadMaintenance = createUploadMaintenanceScheduler({
+  async runLifecyclePass() {
+    const now = new Date();
+    reportIncompleteUploadMaintenance('recovery', await uploadRegistry.drainInterruptedRegistrations({ now }));
+    reportIncompleteUploadMaintenance('expiry', await cleanupExpiredUploadsAsync({ db, uploadsDir, now }));
+    reportIncompleteUploadMaintenance('audit', await cleanupExpiredUploadAuditAsync({ db, now }));
+  },
+  historicalArtifacts: {
+    async runPass(options) {
+      const result = await historicalUploadArtifacts.runPass(options);
+      reportIncompleteUploadMaintenance('historical', result);
+      return result;
+    },
+    close() { historicalUploadArtifacts.close(); },
+  },
+  onError(kind, error) {
+    console.error(`[shim] upload ${kind} maintenance failed:`, error?.code || 'maintenance_failed');
+  },
+});
+function runUploadLifecycleMaintenance() {
+  return uploadMaintenance.runLifecycle();
+}
 // One-minute maintenance is part of the reviewed physical-retention ceiling:
 // upload expiry is shortened by the same interval in uploadRegistry.mjs.
 const uploadCleanupIntervalMinutes = 1;
-const uploadCleanupTimer = setInterval(
-  runUploadLifecycleMaintenance,
-  uploadCleanupIntervalMinutes * 60 * 1000,
-);
-uploadCleanupTimer.unref();
+const historicalCleanupIntervalMs = 60 * 60 * 1000;
+let uploadCleanupTimer;
+let historicalCleanupTimer;
+
+function stopUploadMaintenance() {
+  clearInterval(uploadCleanupTimer);
+  clearInterval(historicalCleanupTimer);
+  uploadMaintenance.close();
+}
 
 const userRepo = createEntityRepository(db, 'User');
 const orgMemberRepo = entityNames.has('OrganizationMember')
@@ -3766,6 +3792,14 @@ function requestListener(req, res) {
 }
 
 const server = http.createServer(requestListener);
+server.once('close', stopUploadMaintenance);
+for (const signal of ['SIGTERM', 'SIGINT']) {
+  process.once(signal, () => {
+    stopUploadMaintenance();
+    server.close();
+  });
+}
+process.once('exit', stopUploadMaintenance);
 
 server.listen(PORT, BIND_HOST, () => {
   const address = server.address();
@@ -3773,6 +3807,18 @@ server.listen(PORT, BIND_HOST, () => {
   const actualPort = address && typeof address === 'object' ? address.port : PORT;
   // eslint-disable-next-line no-console
   console.log(`[shim] listening on http://${actualHost}:${actualPort}`);
+  uploadCleanupTimer = setInterval(
+    runUploadLifecycleMaintenance,
+    uploadCleanupIntervalMinutes * 60 * 1000,
+  );
+  uploadCleanupTimer.unref();
+  historicalCleanupTimer = setInterval(
+    () => uploadMaintenance.runHistorical(),
+    historicalCleanupIntervalMs,
+  );
+  historicalCleanupTimer.unref();
+  void runUploadLifecycleMaintenance();
+  void uploadMaintenance.runHistorical();
 });
 
 export { server, db };
