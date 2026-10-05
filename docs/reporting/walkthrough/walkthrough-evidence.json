@@ -1,0 +1,17 @@
+{
+  "evidenceKind": "offline-loopback-browser-walkthrough",
+  "dataset": "synthetic fixtures only",
+  "provider": "none (AI drafting fails closed)",
+  "recordedAt": "deterministic seed clock; screenshots taken during the run",
+  "steps": [
+    {
+      "step": "outputs-list",
+      "requests": 3,
+      "overdue": true
+    },
+    {
+      "step": "request-created",
+      "url": "http://127.0.0.1:40967/requests/req-c3b00c41-0a06-403f-bf69-6075ecf6835e"
+    }
+  ]
+}
